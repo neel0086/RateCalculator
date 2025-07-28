@@ -47,22 +47,22 @@ const Navbar = () => {
                             {/* style={({ isActive }) => ({ color: isActive ? 'cyan' : 'white' })} */}
                         </li>
                         <li className='hover:invert-0.4'>
-                            <Link className='mx-1 px-2 font-bold' to='/box_rate'>BoxRate</Link>
+                            <Link className='mx-1 px-2 font-bold' to='/box_rate'>Interlock</Link>
                             {/* style={({ isActive }) => ({ color: isActive ? 'cyan' : 'white' })} */}
                             {/* style={({ isActive }) => ({ color: isActive ? 'cyan' : 'white' })} */}
                         </li>
                         <li className='hover:invert-0.4'>
-                            <Link className='mx-1 px-2 font-bold' to='/box_search'>BoxSearch</Link>
+                            <Link className='mx-1 px-2 font-bold' to='/box_search'>InterlockData</Link>
                             {/* style={({ isActive }) => ({ color: isActive ? 'cyan' : 'white' })} */}
                             {/* style={({ isActive }) => ({ color: isActive ? 'cyan' : 'white' })} */}
                         </li>
                         <li className='hover:invert-0.4'>
-                            <Link className='mx-1 px-2 font-bold' to='/box_universal'>BoxUniversal</Link>
+                            <Link className='mx-1 px-2 font-bold' to='/box_universal'>Universal</Link>
                             {/* style={({ isActive }) => ({ color: isActive ? 'cyan' : 'white' })} */}
                             {/* style={({ isActive }) => ({ color: isActive ? 'cyan' : 'white' })} */}
                         </li>
                         <li className='hover:invert-0.4'>
-                            <Link className='mx-1 px-2 font-bold' to='/box_universal_search'>BoxUniversalSearch</Link>
+                            <Link className='mx-1 px-2 font-bold' to='/box_universal_search'>UniversalData</Link>
                             {/* style={({ isActive }) => ({ color: isActive ? 'cyan' : 'white' })} */}
                             {/* style={({ isActive }) => ({ color: isActive ? 'cyan' : 'white' })} */}
                         </li>
