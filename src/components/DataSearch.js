@@ -25,6 +25,8 @@ const DataSearch = ({ contract }) => {
   const [printPreview, setPrintPreview] = useState("")
 
   const [printModal, setPrintModal] = useState(false)
+  const [selectedRows, setSelectedRows] = useState([]);
+
 
   useEffect(() => {
     const loadData = () => {
@@ -78,6 +80,28 @@ const DataSearch = ({ contract }) => {
     XLSX.utils.book_append_sheet(workbook, worksheet, 'Sheet1');
     XLSX.writeFile(workbook, 'data.xlsx');
   }
+
+  function ExportSelectedToExcel() {
+    if (!selectedRows.length) return alert("No rows selected!");
+
+    const selectedKeys = ["company_name", "product_name", "grand_total", "rate_per_piece", "box_size"]; // add/remove keys here
+
+    const selectedData = selectedRows.map((id) => {
+      const row = dataValues[id]; // dataValues is an object now
+      if (!row) return {}; // safety check
+
+      return Object.fromEntries(
+        Object.entries(row).filter(([key]) => selectedKeys.includes(key))
+      );
+    });
+
+
+    const worksheet = XLSX.utils.json_to_sheet(selectedData);
+    const workbook = XLSX.utils.book_new();
+    XLSX.utils.book_append_sheet(workbook, worksheet, 'Selected Data');
+    XLSX.writeFile(workbook, 'selected_data.xlsx');
+  }
+
   const changeWText = (e) => {
     try {
       setPrintData(
@@ -149,30 +173,53 @@ const DataSearch = ({ contract }) => {
 
 
   }
-  const deleteProduct = async (e) => {
-    await fs.readFile(process.env.REACT_APP_INPUTFILE, 'utf8', async function (err, data) {
-      const data_values = await JSON.parse(data)
-      // setDataValues(data_values)
-      let temp = []
-      let dindex = 0
-      await data_values.companyData.forEach((key, index) => {
-        if (parseInt(key.srno) !== parseInt(deleteIndex)) {
-          key.srno = dindex++
-          temp.push(key)
-        }
-      })
-      data_values.companyData = temp
-      await fs.writeFile(process.env.REACT_APP_INPUTFILE, JSON.stringify(data_values, null, 2), (err) => {
-        setIsLoading(true)
-        setTimeout(() => {
-          setIsLoading(false);
-          window.location.reload()
-        }, 1500);
-        // navigate("/data_search")
-      })
+  const deleteProduct = async () => {
+    fs.readFile(process.env.REACT_APP_INPUTFILE, 'utf8', (err, data) => {
+      if (err) return console.error(err);
 
-    })
-  }
+      try {
+        const data_values = JSON.parse(data);
+        let temp = [];
+        let dindex = 0;
+
+        if (deleteIndex === "bulk") {
+          data_values.companyData.forEach((item, i) => {
+            if (!selectedRows.includes(i)) {
+              item.srno = dindex++;
+              temp.push(item);
+            }
+          });
+        } else {
+          data_values.companyData.forEach((item) => {
+            if (parseInt(item.srno) !== parseInt(deleteIndex)) {
+              item.srno = dindex++;
+              temp.push(item);
+            }
+          });
+        }
+
+        data_values.companyData = temp;
+
+        fs.writeFile(
+          process.env.REACT_APP_INPUTFILE,
+          JSON.stringify(data_values, null, 2),
+          (err) => {
+            if (err) return console.error(err);
+
+            setIsLoading(true);
+            setTimeout(() => {
+              setIsLoading(false);
+              setSelectedRows([]);
+              window.location.reload();
+            }, 1500);
+          }
+        );
+      } catch (parseErr) {
+        console.error("Error parsing file:", parseErr);
+      }
+    });
+  };
+
 
   const handlePrint = () => {
     const currentDate = new Date().toLocaleDateString();
@@ -200,6 +247,7 @@ const DataSearch = ({ contract }) => {
 
 
 
+  if (!searchData) return <Loading value="Loading data..." />;
 
   return (
     <div className='pt-8 pb-20 w-screen flex h-screen'>
@@ -231,6 +279,24 @@ const DataSearch = ({ contract }) => {
 
                 <span className="relative">ExportToExcel</span>
               </button>
+              <button onClick={() => ExportSelectedToExcel()} className="text-white text-xl h-fit bg-green-700 hover:bg-green-800 focus:ring-4 focus:outline-none focus:ring-blue-300 font-medium rounded-lg text-sm px-4 py-2 mt-2 mr-2">
+                Export Selected
+              </button>
+              <button
+                onClick={() => {
+                  if (selectedRows.length === 0) {
+                    alert("No rows selected!");
+                  } else {
+                    setDeleteModal(true);
+                    setDeleteIndex("bulk"); // special value for bulk delete
+                  }
+                }}
+                className="text-white text-xl h-fit bg-red-700 hover:bg-red-800 focus:ring-4 focus:outline-none focus:ring-blue-300 font-medium rounded-lg text-sm px-4 py-2 mt-2 mr-2"
+              >
+                Delete
+              </button>
+
+
               {/* <a href="https://wa.me/919825328865?text=hello" target="_blank" rel="noopener noreferrer"> */}
               <button onClick={(e) => setMssgModal(true)} className="text-white text-xl h-fit bg-zinc-700 hover:bg-zinc-800 focus:ring-4 focus:outline-none focus:ring-blue-300 font-medium rounded-lg text-sm px-4 py-2 mt-2 mr-2">
 
@@ -248,8 +314,19 @@ const DataSearch = ({ contract }) => {
               <thead className="text-lg  text-gray-700 uppercase bg-gray-50 dark:bg-gray-700 dark:text-gray-400">
                 <tr>
                   <th scope="col" className="px-2 py-3">
-
+                    <input
+                      type="checkbox"
+                      onChange={(e) => {
+                        if (e.target.checked) {
+                          setSelectedRows(searchData.map(d => d[1])); // store all indexes
+                        } else {
+                          setSelectedRows([]);
+                        }
+                      }}
+                      checked={selectedRows.length === searchData.length}
+                    />
                   </th>
+
                   <th scope="col" className="px-6 py-3">
                     <div className='flex'>
                       Sr no. <img src={AscendingIcon} className='pl-2 cursor-pointer' onClick={() => { setSearchData([...searchData].reverse()) }} alt="" />
@@ -278,41 +355,53 @@ const DataSearch = ({ contract }) => {
               </thead>
               <tbody className="bg-inherit table_body" >
                 {!searchData ? "" :
-                  searchData.map(function (data, index) {
-                    return (
+                  searchData.map((data, index) => (
+                    <tr
+                      key={data[1]} // Ensure this is stable and unique
+                      onClick={() => navigate("/rate_calculator", { state: data })}
+                      className=" border-b border-opacity-5 bg-inherit  hover:bg-zinc-900 cursor-pointer"
+                    >
+                      <td className="text-lg text-white px-2 py-4">
+                        <input
+                          type="checkbox"
+                          checked={selectedRows.includes(data[1])}
+                          onClick={(e) => e.stopPropagation()}
+                          onChange={(e) =>
+                            setSelectedRows((prev) =>
+                              prev.includes(data[1])
+                                ? prev.filter((item) => item !== data[1])
+                                : [...prev, data[1]]
+                            )
+                          }
+                        />
+                      </td>
 
+                      <td className="text-lg text-white px-6 py-4">
+                        {data[0].srno + 1}
+                      </td>
+                      <td className="text-lg text-white px-6 py-4">
+                        {data[0].company_name}
+                      </td>
+                      <td className="text-lg text-white px-6 py-4">
+                        {data[0].product_name}
+                      </td>
+                      <th scope="row" className="text-lg text-white px-6 py-4 font-medium text-gray-900 whitespace-nowrap dark:text-white">
+                        {data[0].grand_total}
+                      </th>
+                      <td className="text-lg text-white px-6 py-4">
+                        {data[0].rate_per_piece}
+                      </td>
+                      <td className="text-lg text-white px-6 py-4">
+                        {data[0].box_size}
+                      </td>
+                      <td className="text-lg text-white px-6 py-4">
+                        {data[0].date}
+                      </td>
 
+                    </tr>
 
-                      <tr onClick={() => { navigate("/rate_calculator", { state: data }) }} className=" border-b border-opacity-5 bg-inherit  hover:bg-zinc-900 cursor-pointer">
-                        <td className="text-lg text-white px-2 py-4 invert-0.5" onClick={(e) => handleDelete(e, data[0].srno)}>
-                          X
-                        </td>
-                        <td className="text-lg text-white px-6 py-4">
-                          {data[0].srno + 1}
-                        </td>
-                        <td className="text-lg text-white px-6 py-4">
-                          {data[0].company_name}
-                        </td>
-                        <td className="text-lg text-white px-6 py-4">
-                          {data[0].product_name}
-                        </td>
-                        <th scope="row" className="text-lg text-white px-6 py-4 font-medium text-gray-900 whitespace-nowrap dark:text-white">
-                          {data[0].grand_total}
-                        </th>
-                        <td className="text-lg text-white px-6 py-4">
-                          {data[0].rate_per_piece}
-                        </td>
-                        <td className="text-lg text-white px-6 py-4">
-                          {data[0].box_size}
-                        </td>
-                        <td className="text-lg text-white px-6 py-4">
-                          {data[0].date}
-                        </td>
-
-                      </tr>
-
-                    )
-                  })
+                  )
+                  )
                 }
               </tbody>
             </table>
@@ -399,7 +488,18 @@ const DataSearch = ({ contract }) => {
                 </button>
                 <div class="p-6 text-center">
                   <svg aria-hidden="true" class="mx-auto mb-4 text-gray-400 w-14 h-14 dark:text-gray-200" fill="none" stroke="currentColor" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 8v4m0 4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z"></path></svg>
-                  <h3 class="mb-5 text-lg font-normal text-gray-500 dark:text-gray-400">Are you sure you want to delete this product (SR_NO: <span className='font-bold text-xl'>{deleteIndex + 1}</span>)?</h3>
+                  <h3 className="mb-5 text-lg font-normal text-gray-500 dark:text-gray-400">
+                    {deleteIndex === "bulk" ? (
+                      <>
+                        Are you sure you want to delete <span className="font-bold">{selectedRows.length}</span> selected products?
+                      </>
+                    ) : (
+                      <>
+                        Are you sure you want to delete this product (SR_NO: <span className='font-bold text-xl'>{deleteIndex + 1}</span>)?
+                      </>
+                    )}
+                  </h3>
+
                   <button onClick={(e) => deleteProduct(e)} type="button" class="text-white bg-red-600 hover:bg-red-800 focus:ring-4 focus:outline-none focus:ring-red-300 dark:focus:ring-red-800 font-medium rounded-lg text-sm inline-flex items-center px-5 py-2.5 text-center mr-2">
                     Yes, I'm sure
                   </button>

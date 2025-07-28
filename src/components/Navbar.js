@@ -1,8 +1,9 @@
-import React, { useState } from 'react'
+import React, { useEffect, useState } from 'react'
 import { Link } from "react-router-dom";
 import { Transition } from '@headlessui/react';
 import { HiOutlineX, HiMenuAlt3 } from 'react-icons/hi'
 import logo from "../assets/logo.png";
+import { SketchPicker } from 'react-color'; // at the top
 
 
 
@@ -16,8 +17,20 @@ const Navbar = () => {
         // WIN.close();
     };
     const [isOpen, setIsOpen] = useState(false);
+    const [navbarColor, setNavbarColor] = useState('#fde68a'); // default: tailwind bg-yellow-200
+    const [showColorPicker, setShowColorPicker] = useState(false);
+
+    useEffect(() => {
+        const savedColor = localStorage.getItem('navbarColor');
+        if (savedColor) setNavbarColor(savedColor);
+    }, []);
+
+    useEffect(() => {
+        localStorage.setItem('navbarColor', navbarColor);
+    }, [navbarColor]);
+
     return (
-        <nav className="bg-yellow-200 fixed shadow-md shadow-slate-600 w-screen text-black-100 backdrop-blur-lg z-50 py-3">
+        <nav style={{ backgroundColor: navbarColor }} className="fixed shadow-md shadow-slate-600 w-screen text-black-100 backdrop-blur-lg z-50 py-3">
             <div className="flex items-center justify-between  px-10">
                 <div className="flex space-x-10 align-center">
                     <Link to="/" className="flex gap-2 text-2xl font-bold  items-center sm:flex ">
@@ -66,6 +79,25 @@ const Navbar = () => {
                             <HiMenuAlt3 className='text-2xl text-gray-200' />
                         }
                     </button>
+                    <div className="relative z-50">
+                        <button
+                            onClick={() => setShowColorPicker(!showColorPicker)}
+                            className="rounded-full p-2 mx-1 bg-white shadow hover:bg-gray-100 border border-gray-300"
+                            title="Pick Navbar Color"
+                        >
+                            🎨
+                        </button>
+                        {showColorPicker && (
+                            <div className="absolute right-0 top-full mt-2 shadow-lg">
+                                <SketchPicker
+                                    color={navbarColor}
+                                    onChangeComplete={(color) => setNavbarColor(color.hex)}
+                                />
+                            </div>
+                        )}
+                    </div>
+
+
                     {/* onClick={()=>closeWindow()} */}
                     <button type="button" onClick={() => closeWindow()} className=" rounded-md p-2 inline-flex items-center justify-center text-gray-400 hover:text-gray-500 hover:bg-gray-100 focus:outline-none focus:ring-2 focus:ring-inset focus:ring-indigo-500">
                         <span className="sr-only">Close menu</span>
@@ -112,6 +144,7 @@ const Navbar = () => {
                     )
                 }
             </Transition>
+
         </nav >
     )
 }
