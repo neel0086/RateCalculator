@@ -56,7 +56,6 @@ const Calculator = () => {
     const [product_name, setProduct_name] = useState("")
     const [remarks, setRemarks] = useState("")
     const [box_size, setBox_size] = useState("")
-    const [saveDate, setSaveDate] = useState("")
     const [dataValues, setDataValues] = useState(0)
 
     const [lamDrop, setLamDrop] = useState(false)
@@ -148,7 +147,6 @@ const Calculator = () => {
         var options = { timeZone: 'Asia/Kolkata', day: 'numeric', month: 'numeric', year: 'numeric' };
         var newdate = dateObj.toLocaleString('en-US', options);
 
-        setSaveDate(newdate)
         const jsonValues = {
             company_name: company_name,
             product_name: product_name,
@@ -274,7 +272,6 @@ const Calculator = () => {
         setRate_per_piece(data.rate_per_piece)
         setBox_size(data.box_size)
         setRemarks(data.remarks)
-        setSaveDate(data.date)
         setColors(data.colors)
 
     }, [data])
@@ -618,7 +615,6 @@ const Calculator = () => {
         setBox_size(0);
         setRemarks(0);
         setColors(0);
-        setSaveDate(0);
 
     }
     const getGsmData = async () => {

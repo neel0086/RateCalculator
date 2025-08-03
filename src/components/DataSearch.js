@@ -3,10 +3,12 @@ import { useNavigate } from 'react-router-dom';
 import Loading from './Loading';
 import "./DataSearch.css"
 import Whatsapp from "../assets/whatsapp.png"
+import Delete from "../assets/delete.png"
 import PrintIcon from "../assets/print.png"
 
 import * as XLSX from 'xlsx';
 import AscendingIcon from '../assets/ascending.png'
+import SelectAllWithModal from './SelectAllWithModal';
 
 const fs = window.require('fs');
 
@@ -18,6 +20,8 @@ const DataSearch = ({ contract }) => {
   const [deleteModal, setDeleteModal] = useState(false)
   const [deleteIndex, setDeleteIndex] = useState(false)
   const [phoneNumber, setPhoneNUmber] = useState("")
+  const [selectedIds, setSelectedIds] = useState([]);
+
 
   const [wid, setWid] = useState("")
   const [wText, setWText] = useState("")
@@ -82,11 +86,10 @@ const DataSearch = ({ contract }) => {
   }
 
   function ExportSelectedToExcel() {
-    if (!selectedRows.length) return alert("No rows selected!");
+    if (!selectedIds.length) return alert("No rows selected!");
 
-    const selectedKeys = ["company_name", "product_name", "grand_total", "rate_per_piece", "box_size"]; // add/remove keys here
-
-    const selectedData = selectedRows.map((id) => {
+    const selectedKeys = ["company_name", "product_name", "grand_total", "rate_per_piece", "box_size", "quantity"]; // add/remove keys here
+    const selectedData = selectedIds.map((id) => {
       const row = dataValues[id]; // dataValues is an object now
       if (!row) return {}; // safety check
 
@@ -166,13 +169,6 @@ const DataSearch = ({ contract }) => {
     }
   }
 
-  const handleDelete = (e, index) => {
-    e.stopPropagation()
-    setDeleteIndex(index)
-    setDeleteModal(true)
-
-
-  }
   const deleteProduct = async () => {
     fs.readFile(process.env.REACT_APP_INPUTFILE, 'utf8', (err, data) => {
       if (err) return console.error(err);
@@ -245,6 +241,11 @@ const DataSearch = ({ contract }) => {
     printWindow.print();
   };
 
+  const toggleRowSelection = (id) => {
+    setSelectedIds(prev =>
+      prev.includes(id) ? prev.filter(i => i !== id) : [...prev, id]
+    );
+  };
 
 
   if (!searchData) return <Loading value="Loading data..." />;
@@ -293,7 +294,7 @@ const DataSearch = ({ contract }) => {
                 }}
                 className="text-white text-xl h-fit bg-red-700 hover:bg-red-800 focus:ring-4 focus:outline-none focus:ring-blue-300 font-medium rounded-lg text-sm px-4 py-2 mt-2 mr-2"
               >
-                Delete
+                <span className="relative"><img src={Delete} alt="" /></span>
               </button>
 
 
@@ -314,17 +315,19 @@ const DataSearch = ({ contract }) => {
               <thead className="text-lg  text-gray-700 uppercase bg-gray-50 dark:bg-gray-700 dark:text-gray-400">
                 <tr>
                   <th scope="col" className="px-2 py-3">
-                    <input
-                      type="checkbox"
-                      onChange={(e) => {
-                        if (e.target.checked) {
-                          setSelectedRows(searchData.map(d => d[1])); // store all indexes
+                    <SelectAllWithModal
+                      onApplySelection={(ids) => {
+                        if (ids === 'ALL') {
+                          // Select all visible rows
+                          const allIds = searchData && searchData.map(row => row[1]); // assuming your table data has `id`
+                          setSelectedIds(allIds);
                         } else {
-                          setSelectedRows([]);
+                          setSelectedIds(ids);
                         }
                       }}
-                      checked={selectedRows.length === searchData.length}
+
                     />
+
                   </th>
 
                   <th scope="col" className="px-6 py-3">
@@ -364,15 +367,9 @@ const DataSearch = ({ contract }) => {
                       <td className="text-lg text-white px-2 py-4">
                         <input
                           type="checkbox"
-                          checked={selectedRows.includes(data[1])}
+                          checked={selectedIds.includes(data[1])}
                           onClick={(e) => e.stopPropagation()}
-                          onChange={(e) =>
-                            setSelectedRows((prev) =>
-                              prev.includes(data[1])
-                                ? prev.filter((item) => item !== data[1])
-                                : [...prev, data[1]]
-                            )
-                          }
+                          onChange={() => toggleRowSelection(data[1])}
                         />
                       </td>
 
