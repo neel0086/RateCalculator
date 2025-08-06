@@ -29,7 +29,6 @@ const DataSearch = ({ contract }) => {
   const [printPreview, setPrintPreview] = useState("")
 
   const [printModal, setPrintModal] = useState(false)
-  const [selectedRows, setSelectedRows] = useState([]);
 
 
   useEffect(() => {
@@ -87,7 +86,7 @@ const DataSearch = ({ contract }) => {
 
   function ExportSelectedToExcel() {
     if (!selectedIds.length) return alert("No rows selected!");
-
+    console.log(selectedIds)
     const selectedKeys = ["company_name", "product_name", "grand_total", "rate_per_piece", "box_size", "quantity"]; // add/remove keys here
     const selectedData = selectedIds.map((id) => {
       const row = dataValues[id]; // dataValues is an object now
@@ -180,7 +179,7 @@ const DataSearch = ({ contract }) => {
 
         if (deleteIndex === "bulk") {
           data_values.companyData.forEach((item, i) => {
-            if (!selectedRows.includes(i)) {
+            if (!selectedIds.includes(i)) {
               item.srno = dindex++;
               temp.push(item);
             }
@@ -205,7 +204,7 @@ const DataSearch = ({ contract }) => {
             setIsLoading(true);
             setTimeout(() => {
               setIsLoading(false);
-              setSelectedRows([]);
+              setSelectedIds([]);
               window.location.reload();
             }, 1500);
           }
@@ -285,7 +284,7 @@ const DataSearch = ({ contract }) => {
               </button>
               <button
                 onClick={() => {
-                  if (selectedRows.length === 0) {
+                  if (selectedIds.length === 0) {
                     alert("No rows selected!");
                   } else {
                     setDeleteModal(true);
@@ -325,7 +324,7 @@ const DataSearch = ({ contract }) => {
                           setSelectedIds(ids);
                         }
                       }}
-
+                      validIds={searchData.map(a=>a[1])}
                     />
 
                   </th>
@@ -488,7 +487,7 @@ const DataSearch = ({ contract }) => {
                   <h3 className="mb-5 text-lg font-normal text-gray-500 dark:text-gray-400">
                     {deleteIndex === "bulk" ? (
                       <>
-                        Are you sure you want to delete <span className="font-bold">{selectedRows.length}</span> selected products?
+                        Are you sure you want to delete <span className="font-bold">{selectedIds.length}</span> selected products?
                       </>
                     ) : (
                       <>

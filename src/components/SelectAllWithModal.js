@@ -1,7 +1,7 @@
 import React, { useState } from 'react';
 import { Dialog } from '@headlessui/react';
 
-const SelectAllWithModal = ({ onApplySelection }) => {
+const SelectAllWithModal = ({ onApplySelection, validIds }) => {
   const [isModalOpen, setIsModalOpen] = useState(false);
   const [selectAllChecked, setSelectAllChecked] = useState(false);
 
@@ -28,11 +28,14 @@ const SelectAllWithModal = ({ onApplySelection }) => {
       const [start, end] = rangeInput.split('-').map(Number);
       if (!isNaN(start) && !isNaN(end) && start <= end) {
         selectedIds = Array.from({ length: end - start + 1 }, (_, i) => start + i - 1);
+        selectedIds = selectedIds.filter(a => validIds.includes(a));
+
       }
+
     } else if (selectAllMode === 'comma') {
       selectedIds = commaInput
         .split(',')
-        .map((id) => parseInt(id.trim())-1)
+        .map((id) => parseInt(id.trim()) - 1)
         .filter((id) => !isNaN(id));
     }
 
