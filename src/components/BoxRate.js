@@ -268,7 +268,7 @@ const BoxRate = () => {
         var tempArray = temp.concat(Array.from(temp1));
         setCompany_suggestion(tempArray)
         temp = [e.target.value]
-        setProduct_name(temp.concat(Array.from(temp2)))
+        setProduct_suggestion(temp.concat(Array.from(temp2)))
     }
     const handleKey = (e) => {
         e.stopPropagation()
