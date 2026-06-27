@@ -3,7 +3,7 @@ import { useLocation, useNavigate } from 'react-router-dom';
 import Loading from './Loading';
 import UpArrow from "../assets/uparrow.png"
 import RightArrow from "../assets/rightarrow.png"
-const fs = window.require('fs');
+import { readCompanyFile, writeCompanyFile } from '../utils/jsonFile';
 
 const BoxRate = () => {
     const [isLoading, setIsLoading] = useState(false);
@@ -29,9 +29,9 @@ const BoxRate = () => {
     const [product_suggestion, setProduct_suggestion] = useState([])
 
     const [inpIndex, setInpIndex] = useState(-1)
-    const [dataValues, setDataValues] = useState(0)
-    const [dataValues1, setDataValues1] = useState(0)
-    const [dataValues2, setDataValues2] = useState(0)
+    const [dataValues, setDataValues] = useState([])
+    const [dataValues1, setDataValues1] = useState([])
+    const [dataValues2, setDataValues2] = useState([])
 
     const [marginL, setMarginL] = useState(0);
     const [marginB, setMarginB] = useState(0);
@@ -97,21 +97,15 @@ const BoxRate = () => {
             srno: "0"
         }
 
-        await fs.readFile(process.env.REACT_APP_INPUTBOXFILE, 'utf8', async function (err, data) {
-            const data_values = await JSON.parse(data)
-            // setDataValues(data_values)
-            jsonValues.srno = data_values.companyData.length
-            await data_values.companyData.push(jsonValues)
-            fs.writeFile(process.env.REACT_APP_INPUTBOXFILE, JSON.stringify(data_values, null, 2), (err) => {
-                setIsLoading(true)
-                setTimeout(() => {
-                    setIsLoading(false);
-                    navigate("/box_search")
-                }, 1500);
-                // navigate("/data_search")
-            })
-
-        })
+        const data_values = await readCompanyFile(process.env.REACT_APP_INPUTBOXFILE)
+        jsonValues.srno = data_values.companyData.length
+        data_values.companyData.push(jsonValues)
+        await writeCompanyFile(process.env.REACT_APP_INPUTBOXFILE, data_values)
+        setIsLoading(true)
+        setTimeout(() => {
+            setIsLoading(false);
+            navigate("/box_search")
+        }, 1500);
 
 
     }
@@ -170,20 +164,15 @@ const BoxRate = () => {
 
             srno: "0"
         }
-        await fs.readFile(process.env.REACT_APP_INPUTBOXFILE, 'utf8', async function (err, data) {
-            const data_values = await JSON.parse(data)
-            data_values.companyData[index] = jsonValues
-            data_values.companyData[index].srno = index
-            fs.writeFile(process.env.REACT_APP_INPUTBOXFILE, JSON.stringify(data_values, null, 2), (err) => {
-                setIsLoading(true)
-                setTimeout(() => {
-                    setIsLoading(false);
-                    navigate("/box_search")
-                }, 1500);
-
-            })
-
-        })
+        const data_values = await readCompanyFile(process.env.REACT_APP_INPUTBOXFILE)
+        data_values.companyData[index] = jsonValues
+        data_values.companyData[index].srno = index
+        await writeCompanyFile(process.env.REACT_APP_INPUTBOXFILE, data_values)
+        setIsLoading(true)
+        setTimeout(() => {
+            setIsLoading(false);
+            navigate("/box_search")
+        }, 1500);
     }
 
 
@@ -199,43 +188,38 @@ const BoxRate = () => {
     }
 
     const suggestions = useRef(true);
-    useEffect(async () => {
+    useEffect(() => {
+        const loadSuggestions = async () => {
         if (suggestions.current) {
-            await fs.readFile(process.env.REACT_APP_INPUTBOXFILE, 'utf8', async function (err, data) {
-                const data_values = await JSON.parse(data)
-                let temp = new Set()
-                data_values.companyData.forEach((key, index) => {
-                    temp.add(key)
-                })
-                var tempArray = Array.from(temp)
-                setCompany_suggestion(tempArray)
-                setDataValues(tempArray)
+            const boxData = await readCompanyFile(process.env.REACT_APP_INPUTBOXFILE)
+            let temp = new Set()
+            boxData.companyData.forEach((key, index) => {
+                if (key.company_name) {
+                    temp.add(key.company_name)
+                }
             })
-            await fs.readFile(process.env.REACT_APP_INPUTUNIVERSALFILE, 'utf8', async function (err, data) {
-                const data_values = await JSON.parse(data)
-                let temp = new Set()
-                data_values.companyData.forEach((key, index) => {
-                    temp.add(key)
-                })
-                var tempArray = Array.from(temp)
-                setDataValues1(tempArray)
-            })
-            await fs.readFile(process.env.REACT_APP_INPUTFILE, 'utf8', async function (err, data) {
-                const data_values = await JSON.parse(data)
-                let temp = new Set()
-                data_values.companyData.forEach((key, index) => {
-                    temp.add(key)
-                })
-                var tempArray = Array.from(temp)
-                setDataValues2(tempArray)
-            })
+            var tempArray = Array.from(temp)
+            setCompany_suggestion(tempArray)
+            setDataValues(boxData.companyData)
+
+            const universalData = await readCompanyFile(process.env.REACT_APP_INPUTUNIVERSALFILE)
+            setDataValues1(universalData.companyData)
+
+            const inputData = await readCompanyFile(process.env.REACT_APP_INPUTFILE)
+            setDataValues2(inputData.companyData)
             suggestions.current = false
         }
+
+        }
+
+        loadSuggestions().catch((err) => console.error("Error loading suggestions:", err))
     }, [])
 
 
     const SearchData = async (e) => {
-        if (e.target.value == "") setCompany_suggestion(dataValues)
+        if (e.target.value == "") {
+            setCompany_suggestion(Array.from(new Set(dataValues.map((key) => key.company_name).filter(Boolean))))
+        }
         var searchKey = e.target.value
         var temp = [e.target.value]
         var temp1 = new Set()
@@ -355,7 +339,7 @@ const BoxRate = () => {
                                                     return (
                                                         index != 0 &&
                                                         <li key={index} className={`flex ${inpIndex == index ? "bg-gray-100" : ""} items-center px-4 py-2 hover:bg-gray-100 dark:hover:bg-gray-600 dark:hover:text-white`}>
-                                                            {data}
+                                                            {String(data)}
                                                         </li>
 
                                                     )
@@ -381,7 +365,7 @@ const BoxRate = () => {
                                                         return (
                                                             index != 0 &&
                                                             <li key={index} className={`flex ${inpIndex == index ? "bg-gray-100" : ""} items-center px-4 py-2 hover:bg-gray-100 dark:hover:bg-gray-600 dark:hover:text-white`}>
-                                                                {data}
+                                                            {String(data)}
                                                             </li>
 
                                                         )

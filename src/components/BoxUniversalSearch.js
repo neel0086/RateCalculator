@@ -6,8 +6,7 @@ import Whatsapp from "../assets/whatsapp.png"
 import * as XLSX from 'xlsx';
 import AscendingIcon from '../assets/ascending.png'
 import DescendingIcon from '../assets/descending.png'
-
-const fs = window.require('fs');
+import { readCompanyFile, replaceCompanyData, writeCompanyFile } from '../utils/jsonFile';
 
 const BoxUniversalSearch = ({ contract }) => {
   const [isLoading, setIsLoading] = useState(false);
@@ -20,16 +19,18 @@ const BoxUniversalSearch = ({ contract }) => {
   const [wid, setWid] = useState("")
   const [wText, setWText] = useState("")
 
-  useEffect(async () => {
-    await fs.readFile(process.env.REACT_APP_INPUTUNIVERSALFILE, 'utf8', async function (err, data) {
-      const data_values = await JSON.parse(data)
+  useEffect(() => {
+    const loadData = async () => {
+      const data_values = await readCompanyFile(process.env.REACT_APP_INPUTUNIVERSALFILE)
       setDataValues(data_values.companyData)
       var temp = [];
       data_values.companyData.forEach((key, index) => {
         temp.push([key, index])
       })
       setSearchData(temp.reverse())
-    })
+    }
+
+    loadData().catch((err) => console.error("Error reading universal box file:", err))
   }, [])
   const navigate = useNavigate();
   const SearchData = async (e) => {
@@ -81,14 +82,14 @@ const BoxUniversalSearch = ({ contract }) => {
         const sheetName = workbook.SheetNames[0];
         const worksheet = workbook.Sheets[sheetName];
         const json = XLSX.utils.sheet_to_json(worksheet);
-        fs.writeFile(process.env.REACT_APP_INPUTUNIVERSALFILE, JSON.stringify({ companyData: json }, null, 2), (err) => {
+        replaceCompanyData(process.env.REACT_APP_INPUTUNIVERSALFILE, json).then(() => {
           setIsLoading(true)
           setTimeout(() => {
             setIsLoading(false);
             window.location.reload()
           }, 1500);
           // navigate("/data_search")
-        })
+        }).catch((err) => console.error("Error importing universal box file:", err))
       };
       reader.readAsArrayBuffer(e.target.files[0]);
     }
@@ -102,28 +103,23 @@ const BoxUniversalSearch = ({ contract }) => {
 
   }
   const deleteProduct = async (e) => {
-    await fs.readFile(process.env.REACT_APP_INPUTUNIVERSALFILE, 'utf8', async function (err, data) {
-      const data_values = await JSON.parse(data)
+    const data_values = await readCompanyFile(process.env.REACT_APP_INPUTUNIVERSALFILE)
       // setDataValues(data_values)
       let temp = []
       let dindex = 0
-      await data_values.companyData.forEach((key, index) => {
+      data_values.companyData.forEach((key, index) => {
         if (parseInt(key.srno) != parseInt(deleteIndex)) {
           key.srno = dindex++
           temp.push(key)
         }
       })
       data_values.companyData = temp
-      await fs.writeFile(process.env.REACT_APP_INPUTUNIVERSALFILE, JSON.stringify(data_values, null, 2), (err) => {
-        setIsLoading(true)
-        setTimeout(() => {
-          setIsLoading(false);
-          window.location.reload()
-        }, 1500);
-        // navigate("/data_search")
-      })
-
-    })
+      await writeCompanyFile(process.env.REACT_APP_INPUTUNIVERSALFILE, data_values)
+      setIsLoading(true)
+      setTimeout(() => {
+        setIsLoading(false);
+        window.location.reload()
+      }, 1500);
   }
 
   return (

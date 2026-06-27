@@ -3,9 +3,8 @@ import { useLocation, useNavigate } from 'react-router-dom';
 import Loading from './Loading';
 import UpArrow from "../assets/uparrow.png"
 import RightArrow from "../assets/rightarrow.png"
+import { readCompanyFile, writeCompanyFile } from '../utils/jsonFile';
 
-
-const fs = window.require('fs');
 
 const BoxUniversal = () => {
     const [isLoading, setIsLoading] = useState(false);
@@ -94,21 +93,15 @@ const BoxUniversal = () => {
             srno: "0"
         }
 
-        await fs.readFile(process.env.REACT_APP_INPUTUNIVERSALFILE, 'utf8', async function (err, data) {
-            const data_values = await JSON.parse(data)
-            // setDataValues(data_values)
-            jsonValues.srno = data_values.companyData.length
-            await data_values.companyData.push(jsonValues)
-            fs.writeFile(process.env.REACT_APP_INPUTUNIVERSALFILE, JSON.stringify(data_values, null, 2), (err) => {
-                setIsLoading(true)
-                setTimeout(() => {
-                    setIsLoading(false);
-                    navigate("/box_universal_search")
-                }, 1500);
-                // navigate("/data_search")
-            })
-
-        })
+        const data_values = await readCompanyFile(process.env.REACT_APP_INPUTUNIVERSALFILE)
+        jsonValues.srno = data_values.companyData.length
+        data_values.companyData.push(jsonValues)
+        await writeCompanyFile(process.env.REACT_APP_INPUTUNIVERSALFILE, data_values)
+        setIsLoading(true)
+        setTimeout(() => {
+            setIsLoading(false);
+            navigate("/box_universal_search")
+        }, 1500);
 
 
     }
@@ -162,20 +155,15 @@ const BoxUniversal = () => {
             boxSize: boxSize,
             srno: "0"
         }
-        await fs.readFile(process.env.REACT_APP_INPUTUNIVERSALFILE, 'utf8', async function (err, data) {
-            const data_values = await JSON.parse(data)
-            data_values.companyData[index] = jsonValues
-            data_values.companyData[index].srno = index
-            fs.writeFile(process.env.REACT_APP_INPUTUNIVERSALFILE, JSON.stringify(data_values, null, 2), (err) => {
-                setIsLoading(true)
-                setTimeout(() => {
-                    setIsLoading(false);
-                    navigate("/box_universal_search")
-                }, 1500);
-
-            })
-
-        })
+        const data_values = await readCompanyFile(process.env.REACT_APP_INPUTUNIVERSALFILE)
+        data_values.companyData[index] = jsonValues
+        data_values.companyData[index].srno = index
+        await writeCompanyFile(process.env.REACT_APP_INPUTUNIVERSALFILE, data_values)
+        setIsLoading(true)
+        setTimeout(() => {
+            setIsLoading(false);
+            navigate("/box_universal_search")
+        }, 1500);
     }
 
 
@@ -191,38 +179,39 @@ const BoxUniversal = () => {
     }
 
     const suggestions = useRef(true);
-    useEffect(async () => {
+    useEffect(() => {
+        const loadSuggestions = async () => {
         if (suggestions.current) {
-            await fs.readFile(process.env.REACT_APP_INPUTBOXFILE, 'utf8', async function (err, data) {
-                const data_values = await JSON.parse(data)
-                let temp = new Set()
-                data_values.companyData.forEach((key, index) => {
-                    temp.add(key.company_name)
-                })
-                var tempArray = Array.from(temp)
-                setCompany_suggestion(tempArray)
-                setDataValues(tempArray)
+            const boxData = await readCompanyFile(process.env.REACT_APP_INPUTBOXFILE)
+            let temp = new Set()
+            boxData.companyData.forEach((key, index) => {
+                temp.add(key.company_name)
             })
-            await fs.readFile(process.env.REACT_APP_INPUTUNIVERSALFILE, 'utf8', async function (err, data) {
-                const data_values = await JSON.parse(data)
-                let temp = new Set()
-                data_values.companyData.forEach((key, index) => {
-                    temp.add(key.company_name)
-                })
-                var tempArray = Array.from(temp)
-                setDataValues1(tempArray)
+            var tempArray = Array.from(temp)
+            setCompany_suggestion(tempArray)
+            setDataValues(tempArray)
+
+            const universalData = await readCompanyFile(process.env.REACT_APP_INPUTUNIVERSALFILE)
+            temp = new Set()
+            universalData.companyData.forEach((key, index) => {
+                temp.add(key.company_name)
             })
-            await fs.readFile(process.env.REACT_APP_INPUTFILE, 'utf8', async function (err, data) {
-                const data_values = await JSON.parse(data)
-                let temp = new Set()
-                data_values.companyData.forEach((key, index) => {
-                    temp.add(key.company_name)
-                })
-                var tempArray = Array.from(temp)
-                setDataValues2(tempArray)
+            tempArray = Array.from(temp)
+            setDataValues1(tempArray)
+
+            const inputData = await readCompanyFile(process.env.REACT_APP_INPUTFILE)
+            temp = new Set()
+            inputData.companyData.forEach((key, index) => {
+                temp.add(key.company_name)
             })
+            tempArray = Array.from(temp)
+            setDataValues2(tempArray)
             suggestions.current = false
         }
+
+        }
+
+        loadSuggestions().catch((err) => console.error("Error loading suggestions:", err))
     }, [])
 
 

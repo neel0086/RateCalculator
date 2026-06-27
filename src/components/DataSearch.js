@@ -9,8 +9,7 @@ import PrintIcon from "../assets/print.png"
 import * as XLSX from 'xlsx';
 import AscendingIcon from '../assets/ascending.png'
 import SelectAllWithModal from './SelectAllWithModal';
-
-const fs = window.require('fs');
+import { readCompanyFile, replaceCompanyData, writeCompanyFile } from '../utils/jsonFile';
 
 const DataSearch = ({ contract }) => {
   const [isLoading, setIsLoading] = useState(false);
@@ -32,33 +31,15 @@ const DataSearch = ({ contract }) => {
 
 
   useEffect(() => {
-    const loadData = () => {
-      const filePath = process.env.REACT_APP_INPUTFILE;
+    const loadData = async () => {
+      const data_values = await readCompanyFile(process.env.REACT_APP_INPUTFILE);
+      setDataValues(data_values.companyData);
 
-      if (!filePath) {
-        console.error("REACT_APP_INPUTFILE is undefined");
-        return;
-      }
-
-      fs.readFile(filePath, 'utf8', (err, data) => {
-        if (err) {
-          console.error("Error reading file:", err);
-          return;
-        }
-
-        try {
-          const data_values = JSON.parse(data);
-          setDataValues(data_values.companyData);
-
-          const temp = data_values.companyData.map((key, index) => [key, index]);
-          setSearchData(temp.reverse());
-        } catch (parseErr) {
-          console.error("Error parsing JSON:", parseErr);
-        }
-      });
+      const temp = data_values.companyData.map((key, index) => [key, index]);
+      setSearchData(temp.reverse());
     };
 
-    loadData();
+    loadData().catch((err) => console.error("Error reading input file:", err));
   }, []);
 
   const navigate = useNavigate();
@@ -155,25 +136,22 @@ const DataSearch = ({ contract }) => {
         const sheetName = workbook.SheetNames[0];
         const worksheet = workbook.Sheets[sheetName];
         const json = XLSX.utils.sheet_to_json(worksheet);
-        fs.writeFile(process.env.REACT_APP_INPUTFILE, JSON.stringify({ companyData: json }, null, 2), (err) => {
+        replaceCompanyData(process.env.REACT_APP_INPUTFILE, json).then(() => {
           setIsLoading(true)
           setTimeout(() => {
             setIsLoading(false);
             window.location.reload()
           }, 1500);
           // navigate("/data_search")
-        })
+        }).catch((err) => console.error("Error importing input file:", err))
       };
       reader.readAsArrayBuffer(e.target.files[0]);
     }
   }
 
   const deleteProduct = async () => {
-    fs.readFile(process.env.REACT_APP_INPUTFILE, 'utf8', (err, data) => {
-      if (err) return console.error(err);
-
-      try {
-        const data_values = JSON.parse(data);
+    try {
+        const data_values = await readCompanyFile(process.env.REACT_APP_INPUTFILE);
         let temp = [];
         let dindex = 0;
 
@@ -195,24 +173,16 @@ const DataSearch = ({ contract }) => {
 
         data_values.companyData = temp;
 
-        fs.writeFile(
-          process.env.REACT_APP_INPUTFILE,
-          JSON.stringify(data_values, null, 2),
-          (err) => {
-            if (err) return console.error(err);
-
-            setIsLoading(true);
-            setTimeout(() => {
-              setIsLoading(false);
-              setSelectedIds([]);
-              window.location.reload();
-            }, 1500);
-          }
-        );
+        await writeCompanyFile(process.env.REACT_APP_INPUTFILE, data_values);
+        setIsLoading(true);
+        setTimeout(() => {
+          setIsLoading(false);
+          setSelectedIds([]);
+          window.location.reload();
+        }, 1500);
       } catch (parseErr) {
         console.error("Error parsing file:", parseErr);
       }
-    });
   };
 
 

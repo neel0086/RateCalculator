@@ -5,9 +5,8 @@ import DropArrow from '../assets/droparrow.png'
 import GsmIcon from '../assets/gsm.png'
 import DescendingIcon from '../assets/descending.png'
 import AscendingIcon from '../assets/ascending.png'
+import { readCompanyFile, writeCompanyFile } from '../utils/jsonFile';
 
-
-const fs = window.require('fs');
 
 const Calculator = () => {
     const [isLoading, setIsLoading] = useState(false);
@@ -197,21 +196,15 @@ const Calculator = () => {
             srno: "0"
         }
 
-        await fs.readFile(process.env.REACT_APP_INPUTFILE, 'utf8', async function (err, data) {
-            const data_values = await JSON.parse(data)
-            // setDataValues(data_values)
-            jsonValues.srno = data_values.companyData.length
-            await data_values.companyData.push(jsonValues)
-            fs.writeFile(process.env.REACT_APP_INPUTFILE, JSON.stringify(data_values, null, 2), (err) => {
-                setIsLoading(true)
-                setTimeout(() => {
-                    setIsLoading(false);
-                    navigate("/data_search")
-                }, 1500);
-                // navigate("/data_search")
-            })
-
-        })
+        const data_values = await readCompanyFile(process.env.REACT_APP_INPUTFILE)
+        jsonValues.srno = data_values.companyData.length
+        data_values.companyData.push(jsonValues)
+        await writeCompanyFile(process.env.REACT_APP_INPUTFILE, data_values)
+        setIsLoading(true)
+        setTimeout(() => {
+            setIsLoading(false);
+            navigate("/data_search")
+        }, 1500);
 
 
     }
@@ -332,28 +325,22 @@ const Calculator = () => {
             colors: colors,
             srno: "0"
         }
-        await fs.readFile(process.env.REACT_APP_INPUTFILE, 'utf8', async function (err, data) {
-            const data_values = JSON.parse(data);
+        const data_values = await readCompanyFile(process.env.REACT_APP_INPUTFILE)
+        data_values.companyData[index] = jsonValues;
 
-            data_values.companyData[index] = jsonValues;
+        const updatedEntry = data_values.companyData.splice(index, 1)[0];
+        data_values.companyData.push(updatedEntry);
 
-            const updatedEntry = data_values.companyData.splice(index, 1)[0];
-            data_values.companyData.push(updatedEntry);
+        data_values.companyData.forEach((entry, i) => {
+            entry.srno = i;
+        });
 
-            data_values.companyData.forEach((entry, i) => {
-                entry.srno = i;
-            });
-
-            fs.writeFile(process.env.REACT_APP_INPUTFILE, JSON.stringify(data_values, null, 2), (err) => {
-                setIsLoading(true)
-                setTimeout(() => {
-                    setIsLoading(false);
-                    navigate("/data_search")
-                }, 1500);
-
-            })
-
-        })
+        await writeCompanyFile(process.env.REACT_APP_INPUTFILE, data_values)
+        setIsLoading(true)
+        setTimeout(() => {
+            setIsLoading(false);
+            navigate("/data_search")
+        }, 1500);
     }
     const updateLamnination = (val, key) => {
         const l0 = ("lamSize1" === key ? val : lamSize1),
@@ -456,18 +443,16 @@ const Calculator = () => {
     useEffect(() => {
         const loadData = async () => {
             if (suggestions.current) {
-                await fs.readFile(process.env.REACT_APP_INPUTFILE, 'utf8', async function (err, data) {
-                    const data_values = await JSON.parse(data)
-                    setPreGsm(Array.from(await JSON.parse(data)))
-                    let temp = new Set()
+                const data_values = await readCompanyFile(process.env.REACT_APP_INPUTFILE)
+                setPreGsm(Array.from(data_values.companyData))
+                let temp = new Set()
 
-                    data_values.companyData.forEach((key, index) => {
-                        temp.add(key.companyData)
-                    })
-                    var tempArray = Array.from(temp)
-                    setCompany_suggestion(tempArray)
-                    setDataValues(data_values.companyData)
+                data_values.companyData.forEach((key, index) => {
+                    temp.add(key.companyData)
                 })
+                var tempArray = Array.from(temp)
+                setCompany_suggestion(tempArray)
+                setDataValues(data_values.companyData)
                 suggestions.current = false
             }
         }
@@ -618,23 +603,21 @@ const Calculator = () => {
 
     }
     const getGsmData = async () => {
-        await fs.readFile(process.env.REACT_APP_INPUTFILE, 'utf8', async function (err, data) {
-            const data_values = await JSON.parse(data)
-            var temp = [];
-            data_values.companyData.forEach((key, index) => {
-                temp.push(key)
-            })
-            const uniqueData = temp.filter((obj, index, arr) => {
-                return (
-                    index ===
-                    arr.findIndex(
-                        (t) =>
-                            t.size_l === obj.size_l && t.size_b === obj.size_b && t.gsm === obj.gsm
-                    )
-                );
-            });
-            setPreGsm(uniqueData.reverse())
+        const data_values = await readCompanyFile(process.env.REACT_APP_INPUTFILE)
+        var temp = [];
+        data_values.companyData.forEach((key, index) => {
+            temp.push(key)
         })
+        const uniqueData = temp.filter((obj, index, arr) => {
+            return (
+                index ===
+                arr.findIndex(
+                    (t) =>
+                        t.size_l === obj.size_l && t.size_b === obj.size_b && t.gsm === obj.gsm
+                )
+            );
+        });
+        setPreGsm(uniqueData.reverse())
     }
 
     const setPreData = (e) => {

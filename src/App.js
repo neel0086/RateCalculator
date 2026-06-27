@@ -1,4 +1,4 @@
-import react from 'react'
+import React, { useEffect } from 'react'
 import {
   HashRouter as Router,
   Route, Routes
@@ -14,8 +14,15 @@ import BoxRate from './components/BoxRate';
 import BoxSearch from './components/BoxSearch';
 import BoxUniversal from './components/BoxUniversal';
 import BoxUniversalSearch from './components/BoxUniversalSearch';
+import { ensureAllEnvJsonFiles } from './utils/jsonFile';
 
 function App() {
+  useEffect(() => {
+    ensureAllEnvJsonFiles().catch((err) => {
+      console.error("Unable to initialize database files:", err);
+    });
+  }, []);
+
   return (
     <div className="App text-Roboto h-screen overflow-hidden bg-gradient-to-tr from-neutral-700 via-gray-800 to-neutral-900">
 
