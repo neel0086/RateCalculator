@@ -11,6 +11,29 @@ import AscendingIcon from '../assets/ascending.png'
 import SelectAllWithModal from './SelectAllWithModal';
 import { readCompanyFile, replaceCompanyData, writeCompanyFile } from '../utils/jsonFile';
 
+const phoneKeyWords = ['phone', 'mobile', 'contact', 'whatsapp', 'whats_app', 'number'];
+
+const normalizePhone = (value) => String(value || '').replace(/\D/g, '');
+
+const getPhoneFromRow = (row) => {
+  if (!row) return '';
+
+  const phoneKey = Object.keys(row).find((key) => (
+    phoneKeyWords.some((word) => key.toLowerCase().includes(word))
+  ));
+
+  return phoneKey ? normalizePhone(row[phoneKey]) : '';
+};
+
+const getWhatsappNumber = (value) => {
+  const digits = normalizePhone(value);
+
+  if (digits.length === 10) return `91${digits}`;
+  if (digits.length === 12 && digits.startsWith('91')) return digits;
+
+  return '';
+};
+
 const DataSearch = ({ contract }) => {
   const [isLoading, setIsLoading] = useState(false);
   const [dataValues, setDataValues] = useState();
@@ -19,6 +42,8 @@ const DataSearch = ({ contract }) => {
   const [deleteModal, setDeleteModal] = useState(false)
   const [deleteIndex, setDeleteIndex] = useState(false)
   const [phoneNumber, setPhoneNUmber] = useState("")
+  const [phoneSuggestions, setPhoneSuggestions] = useState([])
+  const [showPhoneSuggestions, setShowPhoneSuggestions] = useState(false)
   const [selectedIds, setSelectedIds] = useState([]);
 
 
@@ -34,6 +59,7 @@ const DataSearch = ({ contract }) => {
     const loadData = async () => {
       const data_values = await readCompanyFile(process.env.REACT_APP_INPUTFILE);
       setDataValues(data_values.companyData);
+      setPhoneSuggestions(buildPhoneSuggestions(data_values.companyData));
 
       const temp = data_values.companyData.map((key, index) => [key, index]);
       setSearchData(temp.reverse());
@@ -41,6 +67,24 @@ const DataSearch = ({ contract }) => {
 
     loadData().catch((err) => console.error("Error reading input file:", err));
   }, []);
+
+  const buildPhoneSuggestions = (rows) => {
+    const phonesByNumber = new Map();
+
+    (rows || []).forEach((row) => {
+      const phone = getPhoneFromRow(row);
+      if (!phone) return;
+
+      const displayPhone = phone.length === 12 && phone.startsWith('91') ? phone.slice(2) : phone;
+      phonesByNumber.set(displayPhone, {
+        phone: displayPhone,
+        company: row.company_name || '',
+        product: row.product_name || '',
+      });
+    });
+
+    return Array.from(phonesByNumber.values());
+  };
 
   const navigate = useNavigate();
   const SearchData = async (e) => {
@@ -124,6 +168,24 @@ const DataSearch = ({ contract }) => {
       setWText("Please re-enter the proper number")
     }
   }
+
+  const handlePhoneChange = (value) => {
+    setPhoneNUmber(value);
+    setShowPhoneSuggestions(Boolean(value));
+  };
+
+  const matchingPhoneSuggestions = phoneSuggestions.filter((item) => {
+    const searchKey = String(phoneNumber).toLowerCase();
+    return (
+      item.phone.includes(normalizePhone(searchKey))
+      || item.company.toLowerCase().includes(searchKey)
+      || item.product.toLowerCase().includes(searchKey)
+    );
+  }).slice(0, 8);
+
+  const whatsappHref = getWhatsappNumber(phoneNumber)
+    ? `https://wa.me/${getWhatsappNumber(phoneNumber)}?text=${encodeURIComponent(wText)}`
+    : '';
 
 
   const readUploadFile = (e) => {
@@ -385,7 +447,38 @@ const DataSearch = ({ contract }) => {
                   <div className='mb-4'>
                     <div>
                       <label for="w_num" className="block mb-2 text-sm font-medium text-gray-900 dark:text-white">Whatsapp Number</label>
-                      <input onChange={(e) => setPhoneNUmber(e.target.value)} val={phoneNumber} type="text" name="w_num" id="w_num" className="bg-gray-50 border border-gray-300 text-gray-900 text-sm rounded-lg focus:ring-blue-500 focus:border-blue-500 block w-full p-2.5 dark:bg-gray-600 dark:border-gray-500 dark:placeholder-gray-400 dark:text-white" required />
+                      <div className="relative">
+                        <input
+                          onChange={(e) => handlePhoneChange(e.target.value)}
+                          onFocus={() => setShowPhoneSuggestions(Boolean(phoneNumber))}
+                          value={phoneNumber}
+                          type="text"
+                          name="w_num"
+                          id="w_num"
+                          autoComplete="off"
+                          placeholder="Type phone, company, or product"
+                          className="bg-gray-50 border border-gray-300 text-gray-900 text-sm rounded-lg focus:ring-blue-500 focus:border-blue-500 block w-full p-2.5 dark:bg-gray-600 dark:border-gray-500 dark:placeholder-gray-400 dark:text-white"
+                          required
+                        />
+                        {showPhoneSuggestions && matchingPhoneSuggestions.length ? (
+                          <div className="absolute z-50 mt-1 max-h-44 w-full overflow-y-auto rounded-lg bg-white shadow dark:bg-gray-800">
+                            {matchingPhoneSuggestions.map((item) => (
+                              <button
+                                key={`${item.phone}-${item.company}-${item.product}`}
+                                type="button"
+                                onMouseDown={() => {
+                                  setPhoneNUmber(item.phone);
+                                  setShowPhoneSuggestions(false);
+                                }}
+                                className="block w-full px-3 py-2 text-left text-sm text-gray-800 hover:bg-gray-100 dark:text-gray-100 dark:hover:bg-gray-700"
+                              >
+                                <span className="font-semibold">{item.phone}</span>
+                                <span className="ml-2 text-xs text-gray-500 dark:text-gray-300">{item.company}</span>
+                              </button>
+                            ))}
+                          </div>
+                        ) : null}
+                      </div>
                     </div>
                     <div id="dropdownHover" className="w-100 z-10 mt-4 mb-4 bg-white divide-y divide-gray-100 rounded-lg shadow w-100 dark:bg-gray-700">
                       <label for="w_num" className="block mb-2 text-sm font-medium text-gray-900 dark:text-white">Sr No</label>
@@ -398,12 +491,19 @@ const DataSearch = ({ contract }) => {
                       </textarea>
                     </div>
                   </div>
-                  <button type="button" className="text-white bg-red-600 hover:bg-red-800 focus:ring-4 focus:outline-none focus:ring-red-300 dark:focus:ring-red-800 font-medium rounded-lg text-sm inline-flex items-center px-5 py-2.5 text-center mr-2">
-                    <a href={`https://wa.me/91${phoneNumber}?text=${encodeURI(wText)}`} target="_blank" rel="noopener noreferrer">
-
-                      <span className="relative">Whatsapp</span>
-                    </a>
+                  <button
+                    type="button"
+                    disabled={!whatsappHref}
+                    onClick={() => {
+                      if (whatsappHref) window.open(whatsappHref, '_blank', 'noopener,noreferrer');
+                    }}
+                    className={`${whatsappHref ? 'bg-red-600 hover:bg-red-800' : 'bg-gray-500 cursor-not-allowed'} text-white focus:ring-4 focus:outline-none focus:ring-red-300 dark:focus:ring-red-800 font-medium rounded-lg text-sm inline-flex items-center px-5 py-2.5 text-center mr-2`}
+                  >
+                    <span className="relative">Whatsapp</span>
                   </button>
+                  {!whatsappHref && phoneNumber ? (
+                    <p className="mt-2 text-sm text-red-300">Enter a valid 10 digit mobile number.</p>
+                  ) : null}
 
 
                 </div>
