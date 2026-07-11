@@ -1,510 +1,369 @@
-import React, { useEffect, useRef, useState } from 'react'
+import { useEffect, useMemo, useState } from 'react';
 import { useLocation, useNavigate } from 'react-router-dom';
 import Loading from './Loading';
-import UpArrow from "../assets/uparrow.png"
-import RightArrow from "../assets/rightarrow.png"
+import UpArrow from '../assets/uparrow.png';
+import RightArrow from '../assets/rightarrow.png';
 import { readCompanyFile, writeCompanyFile } from '../utils/jsonFile';
 
+const inputClass = 'block text-xl w-40 px-4 py-2 mt-2 text-gray-700 bg-white border border-gray-300 rounded-md dark:bg-gray-800 dark:text-gray-300 dark:border-gray-600 focus:border-blue-500 dark:focus:border-blue-500 focus:outline-none focus:ring';
+const resultInputClass = 'block text-2xl px-2 py-2 mt-2 font-bold text-red-800 bg-white border border-gray-300 rounded-md dark:bg-gray-800 dark:text-gray-300 dark:border-gray-600 focus:border-blue-500 dark:focus:border-blue-500 focus:outline-none focus:ring';
+const labelClass = 'text-white text-lg dark:text-gray-200';
+const sectionClass = 'w-100 mx-4 p-6 mx-auto rounded-md shadow-md dark:bg-gray-800';
+const buttonClass = 'px-6 py-2 w-44 leading-5 text-white text-lg transition-colors duration-200 transform bg-pink-500 rounded-md hover:bg-pink-700 focus:outline-none';
+
+const defaultForm = {
+  company_name: '',
+  product_name: '',
+  size1: 0,
+  size2: 0,
+  size3: 0,
+  pFlap: 0,
+  cFlap: 0,
+  rows: 0,
+  cols: 0,
+  marginL: 0,
+  marginB: 0,
+};
+
+const numberValue = (value) => {
+  const parsed = Number(value);
+  return Number.isFinite(parsed) ? parsed : 0;
+};
+
+const inputValue = (value) => (value === '' ? '' : numberValue(value));
+
+const fixed = (value, digits = 5) => numberValue(value).toFixed(digits);
+
+const getKolkataDate = () => {
+  const options = { timeZone: 'Asia/Kolkata', day: 'numeric', month: 'numeric', year: 'numeric' };
+  return new Date().toLocaleString('en-US', options);
+};
+
+const calculateBox = (form) => {
+  const boxLength = numberValue(form.cFlap) * 2 + numberValue(form.size2) * 2 + numberValue(form.size3);
+  const boxBreadth = numberValue(form.size1) * 2 + numberValue(form.size2) * 2 + numberValue(form.pFlap);
+  const rows = numberValue(form.rows);
+  const cols = numberValue(form.cols);
+
+  const sheetSizeL = rows
+    ? numberValue(form.marginL) + boxLength + (boxLength - numberValue(form.cFlap) - numberValue(form.size2)) * (rows - 1)
+    : 0;
+  const sheetSizeB = numberValue(form.marginB) + boxBreadth * cols;
+
+  return {
+    ups: rows * cols,
+    boxSize: `${boxLength}X${boxBreadth}`,
+    sheetSizeL,
+    sheetSizeB,
+    sheetSizeInchL: fixed(sheetSizeL / 25.4),
+    sheetSizeInchB: fixed(sheetSizeB / 25.4),
+  };
+};
+
+const normalizeLoadedForm = (data) => ({
+  ...defaultForm,
+  ...(data || {}),
+});
+
+const Field = ({ id, label, value, onChange, onKeyDown, type = 'number', children, className = inputClass }) => (
+  <div>
+    <label className={`${labelClass} ${children ? 'flex' : ''}`} htmlFor={id}>
+      {label}
+      {children}
+    </label>
+    <input
+      id={id}
+      type={type}
+      value={value}
+      onKeyDown={onKeyDown}
+      onChange={(event) => onChange?.(event.target.value)}
+      className={className}
+      readOnly={!onChange}
+    />
+  </div>
+);
+
+const SuggestionList = ({ open, suggestions, activeIndex, onSelect }) => (
+  <div className={`z-50 bg-white ${open ? 'block' : 'hidden'} absolute divide-y divide-gray-100 rounded-lg shadow w-100 dark:bg-gray-700`}>
+    <ul className="h-auto max-h-48 py-2 overflow-y-auto text-gray-700 dark:text-gray-200">
+      {suggestions.map((item, index) => (
+        <li
+          key={`${item}-${index}`}
+          onMouseDown={() => onSelect(item)}
+          className={`flex ${activeIndex === index ? 'bg-gray-100' : ''} items-center px-4 py-2 hover:bg-gray-100 dark:hover:bg-gray-600 dark:hover:text-white cursor-pointer`}
+        >
+          {String(item)}
+        </li>
+      ))}
+    </ul>
+  </div>
+);
+
 const BoxRate = () => {
-    const [isLoading, setIsLoading] = useState(false);
-    const [size1, setSize1] = useState(0);
-    const [size2, setSize2] = useState(0);
-    const [size3, setSize3] = useState(0);
-    const [pFlap, setPFlap] = useState(0);
-    const [cFlap, setCFlap] = useState(0);
-    const [rows, setRows] = useState(0);
-    const [cols, setCols] = useState(0);
+  const navigate = useNavigate();
+  const location = useLocation();
+  const editData = Array.isArray(location.state) ? location.state[0] : null;
+  const editIndex = Array.isArray(location.state) ? location.state[1] : null;
 
-    const [sheetSizeL, setSheetSizeL] = useState(0);
-    const [sheetSizeB, setSheetSizeB] = useState(0);
+  const [isLoading, setIsLoading] = useState(false);
+  const [form, setForm] = useState(defaultForm);
+  const [marginType, setMarginType] = useState(true);
+  const [dataValues, setDataValues] = useState([]);
+  const [suggestions, setSuggestions] = useState({ company: [], product: [] });
+  const [drops, setDrops] = useState({ company: false, product: false });
+  const [activeIndex, setActiveIndex] = useState(-1);
 
+  const calculated = useMemo(() => calculateBox(form), [form]);
 
-    const [company_name, setCompany_name] = useState("")
-    const [product_name, setProduct_name] = useState("")
-    const [saveDate, setSaveDate] = useState("")
-    const [companyDrop, setCompanyDrop] = useState(false)
-    const [company_suggestion, setCompany_suggestion] = useState([])
+  useEffect(() => {
+    if (editData) {
+      setForm(normalizeLoadedForm(editData));
+    }
+  }, [editData]);
 
-    const [productDrop, setProductDrop] = useState(false)
-    const [product_suggestion, setProduct_suggestion] = useState([])
+  useEffect(() => {
+    let isMounted = true;
 
-    const [inpIndex, setInpIndex] = useState(-1)
-    const [dataValues, setDataValues] = useState([])
-    const [dataValues1, setDataValues1] = useState([])
-    const [dataValues2, setDataValues2] = useState([])
+    const loadSuggestions = async () => {
+      const [boxData, universalData, inputData] = await Promise.all([
+        readCompanyFile(process.env.REACT_APP_INPUTBOXFILE),
+        readCompanyFile(process.env.REACT_APP_INPUTUNIVERSALFILE),
+        readCompanyFile(process.env.REACT_APP_INPUTFILE),
+      ]);
 
-    const [marginL, setMarginL] = useState(0);
-    const [marginB, setMarginB] = useState(0);
-    const [marginType, setMarginType] = useState(true)
-    const [sheetSizeInchL, setSheetSizeInchL] = useState(0);
-    const [sheetSizeInchB, setSheetSizeInchB] = useState(0);
+      if (!isMounted) return;
 
-    const [boxSize, setBoxSize] = useState("");
-    const [ups, setUps] = useState(0);
+      setDataValues([
+        ...boxData.companyData,
+        ...universalData.companyData,
+        ...inputData.companyData,
+      ]);
+    };
 
+    loadSuggestions().catch((err) => console.error('Error loading suggestions:', err));
 
+    return () => {
+      isMounted = false;
+    };
+  }, []);
 
-    const navigate = useNavigate();
+  const setField = (key, value) => {
+    setForm((current) => ({
+      ...current,
+      [key]: typeof defaultForm[key] === 'number' ? inputValue(value) : value,
+    }));
+  };
 
-    const changeValues = async (val, key) => {
-        var y = ("marginL" == key ? val : marginL)
-        var w = ("marginB" == key ? val : marginB)
-        var x = ("cFlap" == key ? val : cFlap) * 2 + ("size2" == key ? val : size2) * 2 + ("size3" == key ? val : size3)
-        var rowL = ("rows" == key ? val : rows)
-        var colL = ("cols" == key ? val : cols)
-        setUps(rowL * colL)
-        if (rowL != 0) {
-            var a = y + x + (x - ("cFlap" == key ? val : cFlap) - ("size2" == key ? val : size2)) * (rowL - 1)
-            setSheetSizeL(a)
-            setSheetSizeInchL((a / 25.4).toFixed(5))
+  const closeDrops = () => setDrops({ company: false, product: false });
 
-        }
-        else {
-            setSheetSizeL(0)
-        }
-        var z = (("size1" == key ? val : size1) * 2 + ("size2" == key ? val : size2) * 2 + ("pFlap" == key ? val : pFlap))
-        var b = w + z * ("cols" == key ? val : cols)
-        setSheetSizeB(b)
-        setSheetSizeInchB((b / 25.4).toFixed(5))
-        setBoxSize(x + "X" + z)
+  const searchData = (value) => {
+    const searchKey = String(value).toLowerCase();
+    const matches = (key) => Array.from(new Set(
+      dataValues
+        .map((item) => item[key])
+        .filter((item) => item !== undefined && item !== null && String(item).trim() !== '')
+        .filter((item) => String(item).toLowerCase().includes(searchKey))
+    ));
 
+    setSuggestions({
+      company: matches('company_name'),
+      product: matches('product_name'),
+    });
+  };
+
+  const handleSearchChange = (key, value) => {
+    setActiveIndex(-1);
+    setField(key, value);
+    searchData(value);
+    setDrops((current) => ({ ...current, [key === 'company_name' ? 'company' : 'product']: Boolean(value) }));
+  };
+
+  const selectSuggestion = (key, value) => {
+    setField(key, value);
+    setDrops((current) => ({ ...current, [key === 'company_name' ? 'company' : 'product']: false }));
+  };
+
+  const handleKey = (event, key) => {
+    const listKey = key === 'company_name' ? 'company' : 'product';
+    const list = suggestions[listKey];
+    if (!list.length) return;
+
+    if (event.key === 'ArrowDown') {
+      event.preventDefault();
+      const nextIndex = (activeIndex + 1) % list.length;
+      setActiveIndex(nextIndex);
+      setField(key, list[nextIndex]);
     }
 
-    const saveToJson = async () => {
-        var dateObj = new Date();
-        var options = { timeZone: 'Asia/Kolkata', day: 'numeric', month: 'numeric', year: 'numeric' };
-        var newdate = dateObj.toLocaleString('en-US', options);
-
-        setSaveDate(newdate)
-        const jsonValues = {
-            company_name: company_name,
-            product_name: product_name,
-            size1: size1,
-            size2: size2,
-            size3: size3,
-            pFlap: pFlap,
-            cFlap: cFlap,
-            rows: rows,
-            cols: cols,
-            sheet_sizeL: sheetSizeL,
-            sheet_sizeB: sheetSizeB,
-            marginL: marginL,
-            marginB: marginB,
-            date: newdate,
-
-            ups: ups,
-            boxSize: boxSize,
-            srno: "0"
-        }
-
-        const data_values = await readCompanyFile(process.env.REACT_APP_INPUTBOXFILE)
-        jsonValues.srno = data_values.companyData.length
-        data_values.companyData.push(jsonValues)
-        await writeCompanyFile(process.env.REACT_APP_INPUTBOXFILE, data_values)
-        setIsLoading(true)
-        setTimeout(() => {
-            setIsLoading(false);
-            navigate("/box_search")
-        }, 1500);
-
-
-    }
-    const location = useLocation();
-    const dataObj = location.state;
-    var data, index;
-    if (dataObj) {
-        data = dataObj[0]
-        index = dataObj[1]
-    }
-    useEffect(() => {
-        if (!data) return 0;
-        setCompany_name(data.company_name)
-        setProduct_name(data.product_name)
-        setSize1(data.size1)
-        setSize2(data.size2)
-        setSize3(data.size3)
-        setPFlap(data.pFlap)
-        setCFlap(data.cFlap)
-        setRows(data.rows)
-        setCols(data.cols)
-        setSheetSizeL(data.sheet_sizeL)
-        setSheetSizeB(data.sheet_sizeB)
-        setMarginL(data.marginL)
-        setMarginB(data.marginB)
-        setBoxSize(data.boxSize)
-        setUps(data.ups)
-
-    }, [])
-
-    const updateToJson = async () => {
-        var dateObj = new Date();
-        var options = { timeZone: 'Asia/Kolkata', day: 'numeric', month: 'numeric', year: 'numeric' };
-        var newdate = dateObj.toLocaleString('en-US', options);
-
-        // setSaveDate(newdate)
-        const jsonValues = {
-            company_name: company_name,
-            product_name: product_name,
-            size1: size1,
-            size2: size2,
-            size3: size3,
-            pFlap: pFlap,
-            cFlap: cFlap,
-            rows: rows,
-            cols: cols,
-            sheet_sizeL: sheetSizeL,
-            sheet_sizeB: sheetSizeB,
-            marginL: marginL,
-            marginB: marginB,
-            date: newdate,
-            ups: ups,
-            boxSize: boxSize,
-
-
-
-            srno: "0"
-        }
-        const data_values = await readCompanyFile(process.env.REACT_APP_INPUTBOXFILE)
-        data_values.companyData[index] = jsonValues
-        data_values.companyData[index].srno = index
-        await writeCompanyFile(process.env.REACT_APP_INPUTBOXFILE, data_values)
-        setIsLoading(true)
-        setTimeout(() => {
-            setIsLoading(false);
-            navigate("/box_search")
-        }, 1500);
+    if (event.key === 'ArrowUp') {
+      event.preventDefault();
+      const nextIndex = activeIndex <= 0 ? list.length - 1 : activeIndex - 1;
+      setActiveIndex(nextIndex);
+      setField(key, list[nextIndex]);
     }
 
-
-
-    const doMaths = (e) => {
-        if (isNaN(e.target.value)) {
-            return e.target.value
-
-        }
-        else {
-            return parseFloat(e.target.value.trim())
-        }
+    if (event.key === 'Enter' || event.key === 'Tab') {
+      closeDrops();
     }
+  };
 
-    const suggestions = useRef(true);
-    useEffect(() => {
-        const loadSuggestions = async () => {
-        if (suggestions.current) {
-            const boxData = await readCompanyFile(process.env.REACT_APP_INPUTBOXFILE)
-            let temp = new Set()
-            boxData.companyData.forEach((key, index) => {
-                if (key.company_name) {
-                    temp.add(key.company_name)
-                }
-            })
-            var tempArray = Array.from(temp)
-            setCompany_suggestion(tempArray)
-            setDataValues(boxData.companyData)
+  const buildPayload = () => ({
+    company_name: form.company_name,
+    product_name: form.product_name,
+    size1: form.size1,
+    size2: form.size2,
+    size3: form.size3,
+    pFlap: form.pFlap,
+    cFlap: form.cFlap,
+    rows: form.rows,
+    cols: form.cols,
+    sheet_sizeL: calculated.sheetSizeL,
+    sheet_sizeB: calculated.sheetSizeB,
+    marginL: form.marginL,
+    marginB: form.marginB,
+    date: getKolkataDate(),
+    ups: calculated.ups,
+    boxSize: calculated.boxSize,
+    srno: '0',
+  });
 
-            const universalData = await readCompanyFile(process.env.REACT_APP_INPUTUNIVERSALFILE)
-            setDataValues1(universalData.companyData)
+  const finishSave = () => {
+    setIsLoading(true);
+    setTimeout(() => {
+      setIsLoading(false);
+      navigate('/box_search');
+    }, 1500);
+  };
 
-            const inputData = await readCompanyFile(process.env.REACT_APP_INPUTFILE)
-            setDataValues2(inputData.companyData)
-            suggestions.current = false
-        }
+  const saveToJson = async () => {
+    const data = await readCompanyFile(process.env.REACT_APP_INPUTBOXFILE);
+    const payload = buildPayload();
 
-        }
+    payload.srno = data.companyData.length;
+    data.companyData.push(payload);
 
-        loadSuggestions().catch((err) => console.error("Error loading suggestions:", err))
-    }, [])
+    await writeCompanyFile(process.env.REACT_APP_INPUTBOXFILE, data);
+    finishSave();
+  };
 
+  const updateToJson = async () => {
+    const data = await readCompanyFile(process.env.REACT_APP_INPUTBOXFILE);
 
-    const SearchData = async (e) => {
-        if (e.target.value == "") {
-            setCompany_suggestion(Array.from(new Set(dataValues.map((key) => key.company_name).filter(Boolean))))
-        }
-        var searchKey = e.target.value
-        var temp = [e.target.value]
-        var temp1 = new Set()
-        var temp2 = new Set()
+    data.companyData[editIndex] = buildPayload();
+    data.companyData[editIndex].srno = editIndex;
 
-        dataValues.forEach((key, index) => {
-            if (String(key.company_name).toLowerCase().includes(searchKey.toLowerCase())) {
-                temp1.add(key.company_name)
-            }
-            if (String(key.product_name).toLowerCase().includes(searchKey.toLowerCase())) {
-                temp2.add(key.product_name)
-            }
-        });
-        dataValues1.forEach((key, index) => {
-            if (String(key.company_name).toLowerCase().includes(searchKey.toLowerCase())) {
-                temp1.add(key.company_name)
-            }
-            if (String(key.product_name).toLowerCase().includes(searchKey.toLowerCase())) {
-                temp2.add(key.product_name)
-            }
-        });
-        dataValues2.forEach((key, index) => {
-            if (String(key.company_name).toLowerCase().includes(searchKey.toLowerCase())) {
-                temp1.add(key.company_name)
-            }
-            if (String(key.product_name).toLowerCase().includes(searchKey.toLowerCase())) {
-                temp2.add(key.product_name)
-            }
-        });
-        var tempArray = temp.concat(Array.from(temp1));
-        setCompany_suggestion(tempArray)
-        temp = [e.target.value]
-        setProduct_suggestion(temp.concat(Array.from(temp2)))
-    }
-    const handleKey = (e) => {
-        e.stopPropagation()
-        if (e.keyCode == 40) {
-            setInpIndex((inpIndex + 1) % company_suggestion.length)
-            setCompany_name(company_suggestion[(inpIndex + 1) % company_suggestion.length])
-        }
-        else if (e.keyCode == 38) {
-            if (inpIndex == 0) {
-                var cIndex = company_suggestion.length - 1
-                setInpIndex(cIndex)
-                setCompany_name(company_suggestion[cIndex])
-            }
-            else {
-                setInpIndex((inpIndex - 1) % company_suggestion.length)
-                setCompany_name(company_suggestion[(inpIndex - 1) % company_suggestion.length])
-            }
-        }
-        else if (e.keyCode == 13) {
-            setCompanyDrop(false)
-        }
-    }
+    await writeCompanyFile(process.env.REACT_APP_INPUTBOXFILE, data);
+    finishSave();
+  };
 
-    const handleKeyProduct = (e) => {
-        e.stopPropagation()
-        if (e.keyCode == 40) {
-            setInpIndex((inpIndex + 1) % product_suggestion.length)
-            setProduct_name(product_suggestion[(inpIndex + 1) %product_suggestion.length])
-        }
-        else if (e.keyCode == 38) {
-            if (inpIndex == 0) {
-                var cIndex = product_suggestion.length - 1
-                setInpIndex(cIndex)
-                setProduct_name(product_suggestion[cIndex])
-            }
-            else {
-                setInpIndex((inpIndex - 1) % product_suggestion.length)
-                setProduct_name(product_suggestion[(inpIndex - 1) % product_suggestion.length])
-            }
-        }
-        else if (e.keyCode == 13) {
-            setProductDrop(false)
-        }
-    }
-    const clearData = () => {
-        setCompany_name(0);
-        setProduct_name(0);
-        setSize2(0);
-        setSize1(0);
-        setSize3(0);
-        setPFlap(0);
-        setCFlap(0);
-        setRows(0);
-        setCols(0);
-        setSheetSizeL(0)
-        setSheetSizeB(0)
-        setSheetSizeInchL(0)
-        setSheetSizeInchB(0)
-        setMarginL(0)
-        setMarginB(0)
-        setSaveDate(0);
-        setBoxSize(0)
-        setUps(0)
+  const clearData = () => {
+    setForm(defaultForm);
+    setSuggestions({ company: [], product: [] });
+    closeDrops();
+    setActiveIndex(-1);
+  };
 
-    }
+  const renderSuggestionField = ({ id, label, formKey, listKey, width }) => (
+    <div className="relative">
+      <Field
+        id={id}
+        label={label}
+        type="text"
+        value={form[formKey]}
+        onKeyDown={(event) => handleKey(event, formKey)}
+        onChange={(value) => handleSearchChange(formKey, value)}
+        className={`block text-xl ${width} px-4 py-2 mt-2 text-gray-700 bg-white border border-gray-300 rounded-md dark:bg-gray-800 dark:text-gray-300 dark:border-gray-600 focus:border-blue-500 dark:focus:border-blue-500 focus:outline-none focus:ring`}
+      />
+      <SuggestionList
+        open={drops[listKey]}
+        suggestions={suggestions[listKey]}
+        activeIndex={activeIndex}
+        onSelect={(value) => selectSuggestion(formKey, value)}
+      />
+    </div>
+  );
 
-    return (
-        <div className='h-screen w-screen text-Roboto overflow-x-hidden  pb-40 mt-5 bg-gradient-to-tr from-neutral-700 via-neutral-700 to-neutral-700'>
+  const sheetSizeValue = marginType
+    ? `${calculated.sheetSizeL} X ${calculated.sheetSizeB}`
+    : `${calculated.sheetSizeInchL} X ${calculated.sheetSizeInchB}`;
 
-            {!isLoading ? (
-                <div >
+  return (
+    <div className="h-screen w-screen text-Roboto overflow-x-hidden pb-40 mt-5 bg-gradient-to-tr from-neutral-700 via-neutral-700 to-neutral-700">
+      {!isLoading ? (
+        <div>
+          <section className={`${sectionClass} mt-20`}>
+            <div className="flex flex-cols justify-around w-100 grid grid-cols-1 sm:grid-cols-1 md:grid-cols-2 lg:grid-cols-2 xl:grid-cols-2 gap-6 mt-4">
+              <div>
+                {renderSuggestionField({ id: 'company_name', label: 'COMPANY NAME', formKey: 'company_name', listKey: 'company', width: 'w-11/12' })}
+              </div>
+              <div>
+                {renderSuggestionField({ id: 'product_name', label: 'PRODUCT NAME', formKey: 'product_name', listKey: 'product', width: 'w-10/12' })}
+              </div>
+            </div>
+          </section>
 
-                    <section className="w-100 mx-4 p-6 mx-auto  rounded-md shadow-md dark:bg-gray-800 mt-20">
-                        <div className="flex flex-cols justify-around w-100 grid grid-cols-1 sm:grid-cols-1 md:grid-cols-2 lg:grid-cols-2 xl:grid-cols-2 gap-6 mt-4 ">
-                            <div className='relative'>
-                                <label className="text-white text-lg dark:text-gray-200" for="company_name">COMPANY NAME</label>
-                                <input onKeyDown={(e) => handleKey(e)} onChange={(e) => { setInpIndex(0); setCompany_name(e.target.value); SearchData(e); setCompanyDrop(e.target.value ? true : false) }} value={company_name} id="company_name" type="text" className="block text-xl  w-11/12 px-4 py-2 mt-2 text-gray-700 bg-white border border-gray-300 rounded-md dark:bg-gray-800 dark:text-gray-300 dark:border-gray-600 focus:border-blue-500 dark:focus:border-blue-500 focus:outline-none focus:ring" />
-                                <div className={`z-10 bg-white ${companyDrop ? "block" : "hidden"}  focus:block absolute z-50 divide-y divide-gray-100 rounded-lg shadow w-100 dark:bg-gray-700`}>
-                                    {/* ${pDrop ? "block" : "hidden"} */}
-                                    <ul className="h-auto max-h-48 py-2 overflow-y-auto text-gray-700 dark:text-gray-200" aria-labelledby="dropdownUsersButton">
-                                        {
-                                            !company_suggestion ? "" :
-                                                company_suggestion.map(function (data, index) {
-                                                    return (
-                                                        index != 0 &&
-                                                        <li key={index} className={`flex ${inpIndex == index ? "bg-gray-100" : ""} items-center px-4 py-2 hover:bg-gray-100 dark:hover:bg-gray-600 dark:hover:text-white`}>
-                                                            {String(data)}
-                                                        </li>
+          <section className={sectionClass}>
+            <div className="flex">
+              <h1 className="text-xl text-yellow-300 capitalize border-2 w-max p-2 border-dashed">INTERLOCK</h1>
+            </div>
+            <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-4 xl:grid-cols-7 gap-6 mt-4">
+              <Field id="size1" label="SIZE1" value={form.size1} onChange={(value) => setField('size1', value)} />
+              <Field id="size2" label="SIZE2" value={form.size2} onChange={(value) => setField('size2', value)} />
+              <Field id="size3" label="SIZE3" value={form.size3} onChange={(value) => setField('size3', value)} />
+              <Field id="pFlap" label="Pasting Flap" value={form.pFlap} onChange={(value) => setField('pFlap', value)} />
+              <Field id="cFlap" label="Closing Flap" value={form.cFlap} onChange={(value) => setField('cFlap', value)} />
+              <Field id="rows" label="Rows" value={form.rows} onChange={(value) => setField('rows', value)}>
+                &nbsp;&nbsp;<span><img src={UpArrow} alt="" /></span>
+              </Field>
+              <Field id="cols" label="Columns" value={form.cols} onChange={(value) => setField('cols', value)}>
+                &nbsp;&nbsp;<span><img src={RightArrow} alt="" /></span>
+              </Field>
+              <Field id="marginL" label="MarginL" value={form.marginL} onChange={(value) => setField('marginL', value)} />
+              <Field id="marginB" label="MarginB" value={form.marginB} onChange={(value) => setField('marginB', value)} />
+            </div>
+          </section>
 
-                                                    )
-                                                })
-                                        }
+          <section className="w-1/2 mx-4 p-6 mx-auto flex flex-cols justify-around rounded-md shadow-md dark:bg-gray-800 mt-2">
+            <Field id="boxSize" label="Box Size" type="text" value={calculated.boxSize} className={`${resultInputClass} w-44`} />
+            <Field id="ups" label="Ups" value={calculated.ups} className={`${resultInputClass} w-40 px-4`} />
+          </section>
 
+          <section className="w-1/2 mx-4 p-6 mx-auto flex flex-cols justify-around rounded-md shadow-md dark:bg-gray-800 mt-2">
+            <div className="relative">
+              <Field id="sheetSizeL" label="Sheet Size" type="text" value={sheetSizeValue} className={`${resultInputClass} w-96`} />
+              <button
+                onClick={() => setMarginType(true)}
+                className={`${marginType ? 'bg-zinc-500' : ''} bg-white text-black active:bg-pink-600 text-sm mt-1 hover:bg-zinc-500 px-4 font-bold rounded shadow hover:shadow-md outline-none focus:outline-none mr-1 mb-1 ease-linear transition-all duration-150`}
+                type="button"
+              >
+                mm
+              </button>
+              <button
+                onClick={() => setMarginType(false)}
+                className={`${!marginType ? 'bg-zinc-500' : ''} bg-white text-black active:bg-pink-600 text-sm mt-1 hover:bg-zinc-500 px-4 font-bold rounded shadow hover:shadow-md outline-none focus:outline-none mr-1 mb-1 ease-linear transition-all duration-150`}
+                type="button"
+              >
+                in
+              </button>
+            </div>
+          </section>
 
-                                    </ul>
-                                </div>
-                            </div>
-                            <div>
-                                <div className='relative'>
-
-
-                                    <label className="text-white text-lg dark:text-gray-200" for="product_name">PRODUCT NAME</label>
-                                    <input onKeyDown={(e) => handleKeyProduct(e)} onChange={(e) => {setInpIndex(0); setProduct_name(e.target.value); SearchData(e); setProductDrop(e.target.value ? true : false) }} value={product_name} id="product_name" type="text" className="block text-xl  w-10/12 px-4 py-2 mt-2 text-gray-700 bg-white border border-gray-300 rounded-md dark:bg-gray-800 dark:text-gray-300 dark:border-gray-600 focus:border-blue-500 dark:focus:border-blue-500 focus:outline-none focus:ring" />
-                                    <div className={`z-10 bg-white ${productDrop ? "block" : "hidden"}  focus:block absolute z-50 divide-y divide-gray-100 rounded-lg shadow w-100 dark:bg-gray-700`}>
-                                        {/* ${pDrop ? "block" : "hidden"} */}
-                                        <ul className="h-auto max-h-48 py-2 overflow-y-auto text-gray-700 dark:text-gray-200" aria-labelledby="dropdownUsersButton">
-                                            {
-                                                !product_suggestion ? "" :
-                                                    product_suggestion.map(function (data, index) {
-                                                        return (
-                                                            index != 0 &&
-                                                            <li key={index} className={`flex ${inpIndex == index ? "bg-gray-100" : ""} items-center px-4 py-2 hover:bg-gray-100 dark:hover:bg-gray-600 dark:hover:text-white`}>
-                                                            {String(data)}
-                                                            </li>
-
-                                                        )
-                                                    })
-                                            }
-
-
-                                        </ul>
-                                    </div>
-                                </div>
-                            </div>
-
-
-                        </div>
-                    </section>
-
-                    <section className="w-100 mx-4 p-6 mx-auto  rounded-md shadow-md dark:bg-gray-800 ">
-                        <div className='flex'>
-                            <h1 className="text-xl text-yellow-300 text-lg capitalize border-2 w-max p-2 border-dashed">INTERLOCK</h1>
-                        </div>
-                        <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-4 xl:grid-cols-7 gap-6 mt-4 ">
-                            <div>
-                                <label className="text-white text-lg  dark:text-gray-200" for="size1">SIZE1</label>
-                                <input onChange={(e) => { setSize1(doMaths(e)); changeValues(parseFloat(e.target.value), "size1") }} value={size1} id="size1" type="number" className="block text-xl  w-40 px-4 py-2 mt-2 text-gray-700 bg-white border border-gray-300 rounded-md dark:bg-gray-800 dark:text-gray-300 dark:border-gray-600 focus:border-blue-500 dark:focus:border-blue-500 focus:outline-none focus:ring" />
-                            </div>
-                            <div>
-                                <label className="text-white text-lg dark:text-gray-200" for="size2">SIZE2</label>
-                                <input onChange={(e) => { setSize2(doMaths(e)); changeValues(parseFloat(e.target.value), "size2") }} value={size2} id="size2" type="number" className="block text-xl  w-40 px-4 py-2 mt-2 text-gray-700 bg-white border border-gray-300 rounded-md dark:bg-gray-800 dark:text-gray-300 dark:border-gray-600 focus:border-blue-500 dark:focus:border-blue-500 focus:outline-none focus:ring" />
-                            </div>
-
-                            <div>
-                                <label className="text-white text-lg dark:text-gray-200" for="size3">SIZE3</label>
-                                <input onChange={(e) => { setSize3(doMaths(e)); changeValues(parseFloat(e.target.value), "size3") }} value={size3} id="size3" type="number" className="block text-xl  w-40 px-4 py-2 mt-2 text-gray-700 bg-white border border-gray-300 rounded-md dark:bg-gray-800 dark:text-gray-300 dark:border-gray-600 focus:border-blue-500 dark:focus:border-blue-500 focus:outline-none focus:ring" />
-                            </div>
-
-                            <div>
-                                <label className="text-white text-lg dark:text-gray-200" for="pFlap">Pasting Flap</label>
-                                <input onChange={(e) => { setPFlap(doMaths(e)); changeValues(parseFloat(e.target.value), "pFlap"); }} value={pFlap} id="pFlap" type="number" className="block text-xl  w-40 px-4 py-2 mt-2 text-gray-700 bg-white border border-gray-300 rounded-md dark:bg-gray-800 dark:text-gray-300 dark:border-gray-600 focus:border-blue-500 dark:focus:border-blue-500 focus:outline-none focus:ring" />
-                            </div>
-                            <div>
-                                <label className="text-white text-lg dark:text-gray-200" for="cFlap">Closing Flap</label>
-                                <input onChange={(e) => { setCFlap(doMaths(e)); changeValues(parseFloat(e.target.value), "cFlap") }} value={cFlap} id="cFlap" type="number" className="block text-xl  w-40 px-4 py-2 mt-2 text-gray-700 bg-white border border-gray-300 rounded-md dark:bg-gray-800 dark:text-gray-300 dark:border-gray-600 focus:border-blue-500 dark:focus:border-blue-500 focus:outline-none focus:ring" />
-                            </div>
-
-                            <div>
-                                <label className="text-white text-lg dark:text-gray-200 flex" for="rows">Rows &nbsp;&nbsp;<span><img src={UpArrow} /></span></label>
-                                <input value={rows} id="rows" type="number" onChange={(e) => { setRows(doMaths(e)); changeValues(parseFloat(e.target.value), "rows") }} className="block text-xl  w-40 px-4 py-2 mt-2 text-gray-700 bg-white border border-gray-300 rounded-md dark:bg-gray-800 dark:text-gray-300 dark:border-gray-600 focus:border-blue-500 dark:focus:border-blue-500 focus:outline-none focus:ring" />
-
-                            </div>
-
-                            <div>
-                                <label className="text-white text-lg dark:text-gray-200 flex" for="cols">Columns &nbsp;&nbsp;<span><img src={RightArrow} /></span></label>
-                                <input onChange={(e) => { setCols(doMaths(e)); changeValues(parseFloat(e.target.value), "cols") }} value={cols} id="cols" type="number" className="block text-xl  w-40 px-4 py-2 mt-2 text-gray-700 bg-white border border-gray-300 rounded-md dark:bg-gray-800 dark:text-gray-300 dark:border-gray-600 focus:border-blue-500 dark:focus:border-blue-500 focus:outline-none focus:ring" />
-                            </div>
-                            <div>
-                                <label className="text-white text-lg dark:text-gray-200" for="marginL">MarginL</label>
-                                <input onChange={(e) => { setMarginL(doMaths(e)); changeValues(parseFloat(e.target.value), "marginL") }} value={marginL} id="marginL" type="number" className="block text-xl  w-40 px-4 py-2 mt-2 text-gray-700 bg-white border border-gray-300 rounded-md dark:bg-gray-800 dark:text-gray-300 dark:border-gray-600 focus:border-blue-500 dark:focus:border-blue-500 focus:outline-none focus:ring" />
-                            </div>
-                            <div>
-                                <label className="text-white text-lg dark:text-gray-200" for="marginB">MarginB</label>
-                                <input onChange={(e) => { setMarginB(doMaths(e)); changeValues(parseFloat(e.target.value), "marginB") }} value={marginB} id="marginB" type="number" className="block text-xl  w-40 px-4 py-2 mt-2 text-gray-700 bg-white border border-gray-300 rounded-md dark:bg-gray-800 dark:text-gray-300 dark:border-gray-600 focus:border-blue-500 dark:focus:border-blue-500 focus:outline-none focus:ring" />
-                            </div>
-
-
-
-                        </div>
-
-                    </section>
-                    {/* <section className='w-1/2 mx-4 p-6 mx-auto flex flex-cols justify-around rounded-md shadow-md dark:bg-gray-800 mt-2'>
-                        <div>
-                            <label className="text-white text-lg dark:text-gray-200" for="upsL">Box Size(L)</label>
-                            <input value={upsL} id="upsL" type="number" className="block text-2xl  w-44 px-2 py-2 mt-2 font-bold text-red-800 bg-white border border-gray-300 rounded-md dark:bg-gray-800 dark:text-gray-300 dark:border-gray-600 focus:border-blue-500 dark:focus:border-blue-500 focus:outline-none focus:ring" />
-                        </div>
-                        <div>
-                            <label className="text-white text-lg dark:text-gray-200" for="upsB">Box Size(B)</label>
-                            <input value={upsB} id="upsB" type="number" className="block text-2xl  w-44 px-2 py-2 mt-2 font-bold text-red-800 bg-white border border-gray-300 rounded-md dark:bg-gray-800 dark:text-gray-300 dark:border-gray-600 focus:border-blue-500 dark:focus:border-blue-500 focus:outline-none focus:ring" />
-                        </div>
-                    </section> */}
-                    <section className='w-1/2 mx-4 p-6 mx-auto flex flex-cols justify-around rounded-md shadow-md dark:bg-gray-800 mt-2'>
-                        <div>
-                            <label className="text-white text-lg dark:text-gray-200" for="boxSize">Box Size</label>
-                            <input value={boxSize} id="boxSize" type="text" className="block text-2xl  w-44 px-2 py-2 mt-2 font-bold text-red-800 bg-white border border-gray-300 rounded-md dark:bg-gray-800 dark:text-gray-300 dark:border-gray-600 focus:border-blue-500 dark:focus:border-blue-500 focus:outline-none focus:ring" />
-                        </div>
-                        <div>
-                            <label className="text-white text-lg dark:text-gray-200" for="ups">Ups</label>
-                            <input value={ups} id="ups" type="number" className="block text-2xl  w-40 px-4 py-2 mt-2 font-bold text-red-800 bg-white border border-gray-300 rounded-md dark:bg-gray-800 dark:text-gray-300 dark:border-gray-600 focus:border-blue-500 dark:focus:border-blue-500 focus:outline-none focus:ring" />
-                        </div>
-                    </section>
-
-                    <section className='w-1/2 mx-4 p-6 mx-auto flex flex-cols justify-around rounded-md shadow-md dark:bg-gray-800 mt-2'>
-                        <div className='relative'>
-                            <label className="text-white text-lg dark:text-gray-200" for="sheetSizeL">
-                                Sheet Size
-                            </label>
-                            <input value={marginType ? sheetSizeL + " X " + sheetSizeB : sheetSizeInchL + " X " + sheetSizeInchB} id="sheetSizeL" type="text" className="block text-2xl  w-96 px-2 py-2 mt-2 font-bold text-red-800 bg-white border border-gray-300 rounded-md dark:bg-gray-800 dark:text-gray-300 dark:border-gray-600 focus:border-blue-500 dark:focus:border-blue-500 focus:outline-none focus:ring" />
-                            <button onClick={() => { setMarginType(true) }} className={`${marginType ? "bg-zinc-500" : ""} bg-white text-black active:bg-pink-600  text-sm mt-1 hover:bg-zinc-500 px-4 font-bold rounded shadow hover:shadow-md outline-none focus:outline-none mr-1 mb-1 ease-linear transition-all duration-150`} type="button">
-                                mm
-                            </button>
-                            <button onClick={() => { setMarginType(false) }} className={`${!marginType ? "bg-zinc-500" : ""} bg-white text-black active:bg-pink-600 text-sm mt-1 hover:bg-zinc-500 px-4 font-bold rounded shadow hover:shadow-md outline-none focus:outline-none mr-1 mb-1 ease-linear transition-all duration-150`} type="button">
-                                in
-                            </button>
-                        </div>
-                        {/* <div>
-                            <label className="text-white text-lg dark:text-gray-200" for="sheetSizeB">Sheet Size(B)</label>
-                            <input value={sheetSizeB} id="sheetSizeB" type="text" className="block text-2xl  w-48 px-4 py-2 mt-2 font-bold text-red-800 bg-white border border-gray-300 rounded-md dark:bg-gray-800 dark:text-gray-300 dark:border-gray-600 focus:border-blue-500 dark:focus:border-blue-500 focus:outline-none focus:ring" />
-                            <button onClick={()=>{set;setMarginTypeB(!marginTypeB)}} className={`${marginTypeB ? "bg-zinc-500": ""} bg-white text-black active:bg-pink-600  text-sm mt-1 hover:bg-zinc-500 px-4 font-bold rounded shadow hover:shadow-md outline-none focus:outline-none mr-1 mb-1 ease-linear transition-all duration-150`} type="button">
-                                mm
-                            </button>
-                            <button  onClick={()=>{setMarginTypeB(!marginTypeB)}} className={`${!marginTypeB ? "bg-zinc-500": ""} bg-white text-black active:bg-pink-600 text-sm mt-1 hover:bg-zinc-500 px-4 font-bold rounded shadow hover:shadow-md outline-none focus:outline-none mr-1 mb-1 ease-linear transition-all duration-150`} type="button">
-                                in
-                            </button>
-                        </div> */}
-
-                    </section>
-
-                    <div className="flex justify-center mt-6">
-                        {
-                            data &&
-                            <button onClick={() => updateToJson()} className="px-6 w-44 py-2 leading-5 text-white text-lg transition-colors duration-200 transform bg-pink-500 rounded-md hover:bg-pink-700 focus:outline-none ">Update</button>
-
-                        }
-                        {
-                            !data &&
-                            <div>
-                                <button onClick={() => saveToJson()} className="px-6 py-2 mr-2 w-44 leading-5 text-white text-lg transition-colors duration-200 transform bg-pink-500 rounded-md hover:bg-pink-700 focus:outline-none ">Save</button>
-                                <button onClick={() => clearData()} className="px-6 py-2 w-44 leading-5 text-white text-lg transition-colors duration-200 transform bg-pink-500 rounded-md hover:bg-pink-700 focus:outline-none ">Clear</button>
-
-                            </div>
-                        }
-                    </div>
-
-
-                </div>
+          <div className="flex justify-center mt-6">
+            {editData ? (
+              <button onClick={updateToJson} className={buttonClass}>Update</button>
             ) : (
-                <Loading value='ADDING YOUR DATA...' />
-            )
-            }
-        </div >
-    )
-}
+              <div>
+                <button onClick={saveToJson} className={`${buttonClass} mr-2`}>Save</button>
+                <button onClick={clearData} className={buttonClass}>Clear</button>
+              </div>
+            )}
+          </div>
+        </div>
+      ) : (
+        <Loading value="ADDING YOUR DATA..." />
+      )}
+    </div>
+  );
+};
 
 export default BoxRate;
