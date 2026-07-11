@@ -5,6 +5,7 @@ import DropArrow from '../assets/droparrow.png';
 import GsmIcon from '../assets/gsm.png';
 import DescendingIcon from '../assets/descending.png';
 import AscendingIcon from '../assets/ascending.png';
+import { FaBoxOpen } from 'react-icons/fa';
 import { readCompanyFile, writeCompanyFile } from '../utils/jsonFile';
 
 const inputClass = 'block text-xl w-40 px-4 py-2 mt-2 text-gray-700 bg-white border border-gray-300 rounded-md dark:bg-gray-800 dark:text-gray-300 dark:border-gray-600 focus:border-blue-500 dark:focus:border-blue-500 focus:outline-none focus:ring';
@@ -89,9 +90,21 @@ const numberValue = (value) => {
 
 const inputValue = (value) => (value === '' ? '' : numberValue(value));
 
+const displayNumber = (value) => (numberValue(value) === 0 ? '' : value);
+
 const fixed = (value, digits = 4) => numberValue(value).toFixed(digits);
 
 const divide = (value, divisor) => (numberValue(divisor) ? numberValue(value) / numberValue(divisor) : 0);
+
+const parseBoxSize = (value) => {
+  const compactValue = String(value).replace(/\s+/g, '');
+
+  if (!compactValue || !/^\d+(\.\d+)?([xX]\d+(\.\d+)?){0,2}$/.test(compactValue)) {
+    return null;
+  }
+
+  return compactValue.split(/[xX]/).map(Number);
+};
 
 const getKolkataDate = () => {
   const options = { timeZone: 'Asia/Kolkata', day: 'numeric', month: 'numeric', year: 'numeric' };
@@ -177,6 +190,18 @@ const normalizeLoadedForm = (data) => {
   return normalized;
 };
 
+const normalizeFormForSave = (form) => {
+  const normalized = { ...form };
+
+  editableFormKeys.forEach((key) => {
+    if (typeof defaultForm[key] === 'number') {
+      normalized[key] = numberValue(form[key]);
+    }
+  });
+
+  return normalized;
+};
+
 const NumberField = ({ id, label, value, onChange, readOnly = false, className = inputClass }) => (
   <div>
     <label className={labelClass} htmlFor={id}>{label}</label>
@@ -184,7 +209,7 @@ const NumberField = ({ id, label, value, onChange, readOnly = false, className =
       id={id}
       type="number"
       readOnly={readOnly}
-      value={value}
+      value={displayNumber(value)}
       onChange={(event) => onChange?.(event.target.value)}
       className={className}
     />
@@ -238,7 +263,7 @@ const PopupNumber = ({ id, label, value, onChange }) => (
       type="number"
       id={id}
       className="block w-36 px-1 py-2 border-blue-500 border-2 focus:border-blue-500 dark:focus:border-blue-500 focus:outline-none focus:ring"
-      value={value}
+      value={displayNumber(value)}
       onChange={(event) => onChange(event.target.value)}
     />
   </div>
@@ -249,6 +274,9 @@ const Calculator = () => {
   const location = useLocation();
   const editData = Array.isArray(location.state) ? location.state[0] : null;
   const editIndex = Array.isArray(location.state) ? location.state[1] : null;
+  const boxRateReturnData = !Array.isArray(location.state) && location.state?.fromBoxRate
+    ? location.state
+    : null;
 
   const [isLoading, setIsLoading] = useState(false);
   const [form, setForm] = useState(defaultForm);
@@ -260,6 +288,8 @@ const Calculator = () => {
   const [preGsm, setPreGsm] = useState([]);
   const [multiColor, setMultiColor] = useState(false);
   const [gsmModal, setGsmModal] = useState(false);
+  const [sizeError, setSizeError] = useState('');
+  const [boxSheetSize, setBoxSheetSize] = useState('');
 
   const calculated = useMemo(() => calculateValues(form), [form]);
   const values = { ...form, ...calculated };
@@ -269,6 +299,13 @@ const Calculator = () => {
       setForm(normalizeLoadedForm(editData));
     }
   }, [editData]);
+
+  useEffect(() => {
+    if (boxRateReturnData) {
+      setForm(normalizeLoadedForm(boxRateReturnData.calculatorForm));
+      setBoxSheetSize(boxRateReturnData.boxSheetSize || '');
+    }
+  }, [boxRateReturnData]);
 
   useEffect(() => {
     let isMounted = true;
@@ -347,6 +384,10 @@ const Calculator = () => {
 
     closeSearchDrops();
     setField(config.formKey, value);
+    if (type === 'size') {
+      setSizeError('');
+      setBoxSheetSize('');
+    }
     setActiveSuggestion(-1);
 
     const searchKey = String(value).toLowerCase();
@@ -395,8 +436,29 @@ const Calculator = () => {
     }
   };
 
+  const goToBoxRate = () => {
+    const sizes = parseBoxSize(form.box_size);
+
+    if (!sizes) {
+      setSizeError('Wrong size value. Use format like 24X25X42, 23x34, or 23.');
+      return;
+    }
+
+    setSizeError('');
+    navigate('/box_rate', {
+      state: {
+        fromCalculator: true,
+        size1: sizes[0] || 0,
+        size2: sizes[1] || 0,
+        size3: sizes[2] || 0,
+        calculatorForm: form,
+        boxSheetSize,
+      },
+    });
+  };
+
   const buildPayload = () => ({
-    ...form,
+    ...normalizeFormForSave(form),
     ...calculated,
     date: getKolkataDate(),
     srno: '0',
@@ -441,6 +503,8 @@ const Calculator = () => {
     setDrops(defaultDrops);
     setSuggestions([]);
     setActiveSuggestion(-1);
+    setSizeError('');
+    setBoxSheetSize('');
   };
 
   const setRateFromPaper = (rateKey) => {
@@ -560,8 +624,34 @@ const Calculator = () => {
           </section>
 
           <section className={`${sectionClass} mt-2`}>
-            <div className="flex flex-cols justify-around w-100 grid grid-cols-1 sm:grid-cols-1 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-3 gap-6 mt-4">
-              {renderSuggestionField({ type: 'size', id: 'box_size', label: 'SIZE', width: 'w-10/12' })}
+            <div className="flex flex-cols justify-around w-100 grid grid-cols-1 sm:grid-cols-1 md:grid-cols-2 lg:grid-cols-4 xl:grid-cols-4 gap-6 mt-4">
+              <div>
+                <div className="relative">
+                  {renderSuggestionField({ type: 'size', id: 'box_size', label: 'SIZE', width: 'w-10/12' })}
+                  <button
+                    type="button"
+                    onClick={goToBoxRate}
+                    className="absolute top-9 right-2 flex h-10 w-10 items-center justify-center rounded-md bg-white text-gray-800 shadow hover:bg-zinc-200 focus:outline-none focus:ring"
+                    title="Send size to Interlock"
+                    aria-label="Send size to Interlock"
+                  >
+                    <FaBoxOpen className="text-xl" />
+                  </button>
+                </div>
+                {sizeError ? (
+                  <p className="mt-2 text-sm font-semibold text-red-300">{sizeError}</p>
+                ) : null}
+              </div>
+              <div>
+                <label className={labelClass} htmlFor="box_sheet_size">SHEET SIZE</label>
+                <input
+                  id="box_sheet_size"
+                  type="text"
+                  readOnly
+                  value={boxSheetSize}
+                  className="block text-xl w-10/12 px-4 py-2 mt-2 text-gray-700 bg-white border border-gray-300 rounded-md dark:bg-gray-800 dark:text-gray-300 dark:border-gray-600 focus:outline-none"
+                />
+              </div>
               {renderSuggestionField({ type: 'remark', id: 'remarks', label: 'REMARKS', width: 'w-10/12' })}
               {renderSuggestionField({ type: 'color', id: 'color', label: 'Color', width: 'w-10/12' })}
             </div>

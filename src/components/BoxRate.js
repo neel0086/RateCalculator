@@ -32,6 +32,8 @@ const numberValue = (value) => {
 
 const inputValue = (value) => (value === '' ? '' : numberValue(value));
 
+const displayNumber = (value) => (numberValue(value) === 0 ? '' : value);
+
 const fixed = (value, digits = 5) => numberValue(value).toFixed(digits);
 
 const getKolkataDate = () => {
@@ -52,7 +54,7 @@ const calculateBox = (form) => {
 
   return {
     ups: rows * cols,
-    boxSize: `${boxLength}X${boxBreadth}`,
+    boxSize: boxLength || boxBreadth ? `${boxLength}X${boxBreadth}` : '',
     sheetSizeL,
     sheetSizeB,
     sheetSizeInchL: fixed(sheetSizeL / 25.4),
@@ -65,6 +67,18 @@ const normalizeLoadedForm = (data) => ({
   ...(data || {}),
 });
 
+const normalizeFormForSave = (form) => {
+  const normalized = { ...form };
+
+  Object.keys(defaultForm).forEach((key) => {
+    if (typeof defaultForm[key] === 'number') {
+      normalized[key] = numberValue(form[key]);
+    }
+  });
+
+  return normalized;
+};
+
 const Field = ({ id, label, value, onChange, onKeyDown, type = 'number', children, className = inputClass }) => (
   <div>
     <label className={`${labelClass} ${children ? 'flex' : ''}`} htmlFor={id}>
@@ -74,7 +88,7 @@ const Field = ({ id, label, value, onChange, onKeyDown, type = 'number', childre
     <input
       id={id}
       type={type}
-      value={value}
+      value={type === 'number' ? displayNumber(value) : value}
       onKeyDown={onKeyDown}
       onChange={(event) => onChange?.(event.target.value)}
       className={className}
@@ -104,6 +118,9 @@ const BoxRate = () => {
   const location = useLocation();
   const editData = Array.isArray(location.state) ? location.state[0] : null;
   const editIndex = Array.isArray(location.state) ? location.state[1] : null;
+  const calculatorSizeData = !Array.isArray(location.state) && location.state?.fromCalculator
+    ? location.state
+    : null;
 
   const [isLoading, setIsLoading] = useState(false);
   const [form, setForm] = useState(defaultForm);
@@ -120,6 +137,17 @@ const BoxRate = () => {
       setForm(normalizeLoadedForm(editData));
     }
   }, [editData]);
+
+  useEffect(() => {
+    if (calculatorSizeData) {
+      setForm((current) => ({
+        ...current,
+        size1: calculatorSizeData.size1 || 0,
+        size2: calculatorSizeData.size2 || 0,
+        size3: calculatorSizeData.size3 || 0,
+      }));
+    }
+  }, [calculatorSizeData]);
 
   useEffect(() => {
     let isMounted = true;
@@ -207,30 +235,51 @@ const BoxRate = () => {
     }
   };
 
-  const buildPayload = () => ({
-    company_name: form.company_name,
-    product_name: form.product_name,
-    size1: form.size1,
-    size2: form.size2,
-    size3: form.size3,
-    pFlap: form.pFlap,
-    cFlap: form.cFlap,
-    rows: form.rows,
-    cols: form.cols,
+  const buildPayload = () => {
+    const saveForm = normalizeFormForSave(form);
+
+    return {
+    company_name: saveForm.company_name,
+    product_name: saveForm.product_name,
+    size1: saveForm.size1,
+    size2: saveForm.size2,
+    size3: saveForm.size3,
+    pFlap: saveForm.pFlap,
+    cFlap: saveForm.cFlap,
+    rows: saveForm.rows,
+    cols: saveForm.cols,
     sheet_sizeL: calculated.sheetSizeL,
     sheet_sizeB: calculated.sheetSizeB,
-    marginL: form.marginL,
-    marginB: form.marginB,
+    marginL: saveForm.marginL,
+    marginB: saveForm.marginB,
     date: getKolkataDate(),
     ups: calculated.ups,
     boxSize: calculated.boxSize,
     srno: '0',
-  });
+    };
+  };
+
+  const getSheetSizeForCalculator = () => (
+    !calculated.sheetSizeL && !calculated.sheetSizeB
+      ? ''
+      : `${calculated.sheetSizeL} X ${calculated.sheetSizeB}`
+  );
 
   const finishSave = () => {
     setIsLoading(true);
     setTimeout(() => {
       setIsLoading(false);
+      if (calculatorSizeData) {
+        navigate('/rate_calculator', {
+          state: {
+            fromBoxRate: true,
+            calculatorForm: calculatorSizeData.calculatorForm,
+            boxSheetSize: getSheetSizeForCalculator(),
+          },
+        });
+        return;
+      }
+
       navigate('/box_search');
     }, 1500);
   };
@@ -283,7 +332,9 @@ const BoxRate = () => {
     </div>
   );
 
-  const sheetSizeValue = marginType
+  const sheetSizeValue = !calculated.sheetSizeL && !calculated.sheetSizeB
+    ? ''
+    : marginType
     ? `${calculated.sheetSizeL} X ${calculated.sheetSizeB}`
     : `${calculated.sheetSizeInchL} X ${calculated.sheetSizeInchB}`;
 
