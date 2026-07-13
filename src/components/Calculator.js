@@ -96,6 +96,24 @@ const fixed = (value, digits = 4) => numberValue(value).toFixed(digits);
 
 const divide = (value, divisor) => (numberValue(divisor) ? numberValue(value) / numberValue(divisor) : 0);
 
+const parseSheetSize = (value) => {
+  const parts = String(value)
+    .split(/[xX]/)
+    .map((part) => numberValue(part.trim()))
+    .filter((part) => part);
+
+  return parts.length ? parts : null;
+};
+
+const formatSheetSize = (value, unit) => {
+  const sizes = parseSheetSize(value);
+  if (!sizes) return '';
+
+  return sizes
+    .map((size) => (unit === 'in' ? fixed(size / 25.4, 5) : size))
+    .join(' X ');
+};
+
 const parseBoxSize = (value) => {
   const compactValue = String(value).replace(/\s+/g, '');
 
@@ -290,6 +308,7 @@ const Calculator = () => {
   const [gsmModal, setGsmModal] = useState(false);
   const [sizeError, setSizeError] = useState('');
   const [boxSheetSize, setBoxSheetSize] = useState('');
+  const [boxSheetSizeUnit, setBoxSheetSizeUnit] = useState('in');
 
   const calculated = useMemo(() => calculateValues(form), [form]);
   const values = { ...form, ...calculated };
@@ -304,6 +323,7 @@ const Calculator = () => {
     if (boxRateReturnData) {
       setForm(normalizeLoadedForm(boxRateReturnData.calculatorForm));
       setBoxSheetSize(boxRateReturnData.boxSheetSize || '');
+      setBoxSheetSizeUnit('in');
     }
   }, [boxRateReturnData]);
 
@@ -505,6 +525,7 @@ const Calculator = () => {
     setActiveSuggestion(-1);
     setSizeError('');
     setBoxSheetSize('');
+    setBoxSheetSizeUnit('in');
   };
 
   const setRateFromPaper = (rateKey) => {
@@ -648,9 +669,23 @@ const Calculator = () => {
                   id="box_sheet_size"
                   type="text"
                   readOnly
-                  value={boxSheetSize}
+                  value={formatSheetSize(boxSheetSize, boxSheetSizeUnit)}
                   className="block text-xl w-10/12 px-4 py-2 mt-2 text-gray-700 bg-white border border-gray-300 rounded-md dark:bg-gray-800 dark:text-gray-300 dark:border-gray-600 focus:outline-none"
                 />
+                <button
+                  onClick={() => setBoxSheetSizeUnit('mm')}
+                  className={`${boxSheetSizeUnit === 'mm' ? 'bg-zinc-500' : ''} bg-white text-black active:bg-pink-600 text-sm mt-1 hover:bg-zinc-500 px-4 font-bold rounded shadow hover:shadow-md outline-none focus:outline-none mr-1 mb-1 ease-linear transition-all duration-150`}
+                  type="button"
+                >
+                  mm
+                </button>
+                <button
+                  onClick={() => setBoxSheetSizeUnit('in')}
+                  className={`${boxSheetSizeUnit === 'in' ? 'bg-zinc-500' : ''} bg-white text-black active:bg-pink-600 text-sm mt-1 hover:bg-zinc-500 px-4 font-bold rounded shadow hover:shadow-md outline-none focus:outline-none mr-1 mb-1 ease-linear transition-all duration-150`}
+                  type="button"
+                >
+                  in
+                </button>
               </div>
               {renderSuggestionField({ type: 'remark', id: 'remarks', label: 'REMARKS', width: 'w-10/12' })}
               {renderSuggestionField({ type: 'color', id: 'color', label: 'Color', width: 'w-10/12' })}

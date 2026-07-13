@@ -34,6 +34,82 @@ const getWhatsappNumber = (value) => {
   return '';
 };
 
+const getXmlText = (doc, names) => {
+  for (const name of names) {
+    const node = Array.from(doc.getElementsByTagName('*')).find((item) => (
+      item.nodeName.toLowerCase().endsWith(name.toLowerCase())
+    ));
+
+    if (node?.textContent?.trim()) return node.textContent.trim();
+  }
+
+  return '';
+};
+
+const parseWindowsContact = (content, fallbackName) => {
+  const doc = new DOMParser().parseFromString(content, 'text/xml');
+  const name = getXmlText(doc, ['FormattedName', 'FileAs', 'FullName']) || fallbackName;
+  const phones = Array.from(doc.getElementsByTagName('*'))
+    .filter((node) => node.nodeName.toLowerCase().includes('phone'))
+    .map((node) => normalizePhone(node.textContent))
+    .filter((phone) => phone.length >= 10);
+
+  return phones.map((phone) => ({ phone, name, source: 'OS Contacts' }));
+};
+
+const parseVCard = (content, fallbackName) => {
+  const name = content.match(/^FN(?:;[^:]*)?:(.+)$/im)?.[1]?.trim() || fallbackName;
+  const phones = Array.from(content.matchAll(/^TEL(?:;[^:]*)?:(.+)$/gim))
+    .map((match) => normalizePhone(match[1]))
+    .filter((phone) => phone.length >= 10);
+
+  return phones.map((phone) => ({ phone, name, source: 'OS Contacts' }));
+};
+
+const readOsContacts = async () => {
+  if (!window.require) return [];
+
+  const fs = window.require('fs');
+  const path = window.require('path');
+  const os = window.require('os');
+  const contactsDir = path.join(os.homedir(), 'Contacts');
+
+  const readContactFiles = async (dir) => {
+    let entries = [];
+
+    try {
+      entries = await fs.promises.readdir(dir, { withFileTypes: true });
+    } catch (err) {
+      return [];
+    }
+
+    const contacts = await Promise.all(entries.map(async (entry) => {
+      const fullPath = path.join(dir, entry.name);
+
+      if (entry.isDirectory()) {
+        return readContactFiles(fullPath);
+      }
+
+      const extension = path.extname(entry.name).toLowerCase();
+      if (!['.contact', '.vcf', '.vcard'].includes(extension)) return [];
+
+      try {
+        const content = await fs.promises.readFile(fullPath, 'utf8');
+        const fallbackName = path.basename(entry.name, extension);
+        return extension === '.contact'
+          ? parseWindowsContact(content, fallbackName)
+          : parseVCard(content, fallbackName);
+      } catch (err) {
+        return [];
+      }
+    }));
+
+    return contacts.flat();
+  };
+
+  return readContactFiles(contactsDir);
+};
+
 const DataSearch = ({ contract }) => {
   const [isLoading, setIsLoading] = useState(false);
   const [dataValues, setDataValues] = useState();
@@ -58,8 +134,9 @@ const DataSearch = ({ contract }) => {
   useEffect(() => {
     const loadData = async () => {
       const data_values = await readCompanyFile(process.env.REACT_APP_INPUTFILE);
+      const osContacts = await readOsContacts();
       setDataValues(data_values.companyData);
-      setPhoneSuggestions(buildPhoneSuggestions(data_values.companyData));
+      setPhoneSuggestions(buildPhoneSuggestions(data_values.companyData, osContacts));
 
       const temp = data_values.companyData.map((key, index) => [key, index]);
       setSearchData(temp.reverse());
@@ -68,7 +145,7 @@ const DataSearch = ({ contract }) => {
     loadData().catch((err) => console.error("Error reading input file:", err));
   }, []);
 
-  const buildPhoneSuggestions = (rows) => {
+  const buildPhoneSuggestions = (rows, osContacts = []) => {
     const phonesByNumber = new Map();
 
     (rows || []).forEach((row) => {
@@ -78,8 +155,26 @@ const DataSearch = ({ contract }) => {
       const displayPhone = phone.length === 12 && phone.startsWith('91') ? phone.slice(2) : phone;
       phonesByNumber.set(displayPhone, {
         phone: displayPhone,
+        name: row.company_name || '',
         company: row.company_name || '',
         product: row.product_name || '',
+        source: 'Saved Data',
+      });
+    });
+
+    osContacts.forEach((contact) => {
+      const phone = contact.phone.length === 12 && contact.phone.startsWith('91')
+        ? contact.phone.slice(2)
+        : contact.phone;
+
+      if (!phone || phonesByNumber.has(phone)) return;
+
+      phonesByNumber.set(phone, {
+        phone,
+        name: contact.name || '',
+        company: contact.name || '',
+        product: '',
+        source: contact.source || 'OS Contacts',
       });
     });
 
@@ -178,6 +273,7 @@ const DataSearch = ({ contract }) => {
     const searchKey = String(phoneNumber).toLowerCase();
     return (
       item.phone.includes(normalizePhone(searchKey))
+      || item.name.toLowerCase().includes(searchKey)
       || item.company.toLowerCase().includes(searchKey)
       || item.product.toLowerCase().includes(searchKey)
     );
@@ -473,7 +569,10 @@ const DataSearch = ({ contract }) => {
                                 className="block w-full px-3 py-2 text-left text-sm text-gray-800 hover:bg-gray-100 dark:text-gray-100 dark:hover:bg-gray-700"
                               >
                                 <span className="font-semibold">{item.phone}</span>
-                                <span className="ml-2 text-xs text-gray-500 dark:text-gray-300">{item.company}</span>
+                                <span className="ml-2 text-xs text-gray-500 dark:text-gray-300">
+                                  {item.name || item.company}
+                                </span>
+                                <span className="ml-2 text-[11px] text-gray-400">{item.source}</span>
                               </button>
                             ))}
                           </div>
