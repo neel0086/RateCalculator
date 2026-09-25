@@ -26,7 +26,7 @@ function App() {
   }, []);
 
   return (
-    <div className="App text-Roboto h-screen overflow-hidden bg-gradient-to-tr from-neutral-700 via-gray-800 to-neutral-900">
+    <div className="App text-Roboto h-screen overflow-hidden">
 
       <Router>
         <Navbar />

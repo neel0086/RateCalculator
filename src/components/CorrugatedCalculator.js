@@ -61,7 +61,6 @@ const CorrugatedCalculator = () => {
   ];
   return <main className="pt-24 pb-20 px-6 h-screen overflow-y-auto text-white">
     <div className="max-w-7xl mx-auto">
-      <h1 className="text-3xl font-bold mb-5">Corrugated Box Cost Calculator</h1>
       <div className="flex gap-3 mb-5" role="tablist" aria-label="Ply selection">
         {plyChoices.map((choice) => <button key={choice} role="tab" aria-selected={ply === choice} onClick={() => setPly(choice)} className={`px-6 py-2 rounded-md font-bold ${ply === choice ? 'bg-pink-600' : 'bg-gray-700 hover:bg-gray-600'}`}>{choice} Ply</button>)}
       </div>
@@ -69,7 +68,7 @@ const CorrugatedCalculator = () => {
         <section className="p-6 rounded-lg bg-gray-800 shadow-md">
           <h2 className="text-xl font-semibold mb-4">Inputs</h2>
           <div className="grid sm:grid-cols-2 gap-4">
-            {fields.map(([key, label]) => <label key={key} className="text-gray-200">{label}<input aria-label={label} type="number" min="0" step="any" value={input[key]} onChange={(event) => update(key, event.target.value)} className="mt-1 block w-full rounded-md border border-gray-600 bg-gray-700 px-3 py-2 text-white focus:border-blue-400 focus:outline-none" /></label>)}
+            {fields.map(([key, label]) => <label key={key} className="text-gray-200">{label}<input aria-label={label} type="number" min="0" step="any" value={input[key]} onChange={(event) => update(key, event.target.value)} className="smart-rate-input mt-1 block w-full rounded-md border bg-white px-3 py-2 text-gray-700 focus:outline-none" /></label>)}
           </div>
           <div className="mt-5 flex gap-3">
             <button onClick={save} className="px-6 py-2 rounded-md bg-pink-600 hover:bg-pink-700 font-semibold">Save</button>

@@ -281,7 +281,7 @@ const BoxUniversal = () => {
     }
 
     return (
-        <div className='h-screen w-screen text-Roboto overflow-x-hidden  pb-40 mt-5 bg-gradient-to-tr from-neutral-700 via-neutral-700 to-neutral-700'>
+        <div className='h-screen w-screen text-Roboto overflow-x-hidden pb-40 mt-5 bg-gray-800'>
 
             {!isLoading ? (
                 <div >

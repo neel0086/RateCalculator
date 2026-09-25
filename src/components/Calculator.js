@@ -8,7 +8,7 @@ import AscendingIcon from '../assets/ascending.png';
 import { FaBoxOpen } from 'react-icons/fa';
 import { readCompanyFile, writeCompanyFile } from '../utils/jsonFile';
 
-const inputClass = 'block text-xl w-40 px-4 py-2 mt-2 text-gray-700 bg-white border border-gray-300 rounded-md dark:bg-gray-800 dark:text-gray-300 dark:border-gray-600 focus:border-blue-500 dark:focus:border-blue-500 focus:outline-none focus:ring';
+const inputClass = 'smart-rate-input block text-xl w-40 px-4 py-2 mt-2 text-gray-700 bg-white border border-gray-300 rounded-md dark:bg-gray-800 dark:text-gray-300 dark:border-gray-600 focus:border-blue-500 dark:focus:border-blue-500 focus:outline-none focus:ring';
 const labelClass = 'text-white text-lg dark:text-gray-200';
 const buttonClass = 'px-6 py-2 w-44 leading-5 text-white text-lg transition-colors duration-200 transform bg-pink-500 rounded-md hover:bg-pink-700 focus:outline-none';
 const sectionClass = 'w-100 mx-4 p-6 mx-auto rounded-md shadow-md dark:bg-gray-800';
@@ -634,7 +634,7 @@ const Calculator = () => {
   };
 
   return (
-    <div className="h-screen w-screen overflow-x-hidden pb-40 mt-5 bg-gradient-to-tr from-neutral-700 via-neutral-700 to-neutral-700">
+    <div className="h-screen w-screen overflow-x-hidden pb-40 mt-5 bg-gray-800">
       {!isLoading ? (
         <div>
           <section className={`${sectionClass} text-Roboto mt-20`}>

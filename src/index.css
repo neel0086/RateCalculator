@@ -15,3 +15,27 @@ code {
 @tailwind base;
 @tailwind components;
 @tailwind utilities;
+
+/* Use bg-gray-800 as the app canvas; leave component controls and panels alone. */
+body,
+.App {
+  background-color: #1f2937 !important;
+}
+
+/* Shared Rate Calculator field colors, reused by Corrugated Calculator. */
+.App {
+  --field-bg: #ffffff;
+  --field-border: #d1d5db;
+  --field-focus: #3b82f6;
+}
+
+.App .smart-rate-input {
+  background-color: var(--field-bg) !important;
+  border-color: var(--field-border) !important;
+}
+
+.App .smart-rate-input:focus {
+  border-color: var(--field-focus) !important;
+  outline: 2px solid rgba(59, 130, 246, 0.2);
+  outline-offset: 1px;
+}
