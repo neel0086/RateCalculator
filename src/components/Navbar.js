@@ -1,160 +1,99 @@
-import React, { useEffect, useState } from 'react'
-import { Link } from "react-router-dom";
-import { Transition } from '@headlessui/react';
-import { HiOutlineX, HiMenuAlt3 } from 'react-icons/hi'
-import logo from "../assets/logo.png";
-import { SketchPicker } from 'react-color'; // at the top
+import React, { useEffect, useState } from 'react';
+import { Link } from 'react-router-dom';
+import { HiMenuAlt3, HiOutlineX } from 'react-icons/hi';
+import { SketchPicker } from 'react-color';
+import logo from '../assets/logo.png';
 
-
+const links = [
+  ['Rate Calculator', '/rate_calculator'],
+  ['Data Search', '/data_search'],
+  ['Interlock Calculator', '/box_rate'],
+  ['Interlock Data', '/box_search'],
+  ['Universal Calculator', '/box_universal'],
+  ['Universal Data', '/box_universal_search'],
+  ['Corrugated Calculator', '/corrugated_calculator'],
+  ['Corrugated Data', '/corrugated_data'],
+];
 
 const Navbar = () => {
-    const closeWindow = () => {
-        window.close();
-        // const win = window.require('electron').remote.getCurrentWindow();
-        // win.close();
-        // const remote = (window.require) ? window.require("electron").remote : null;
-        // const WIN = remote.getCurrentWindow();
-        // WIN.close();
-    };
-    const [isOpen, setIsOpen] = useState(false);
-    const [navbarColor, setNavbarColor] = useState('#fde68a'); // default: tailwind bg-yellow-200
-    const [showColorPicker, setShowColorPicker] = useState(false);
+  const [isOpen, setIsOpen] = useState(false);
+  const [navbarColor, setNavbarColor] = useState('#fde68a');
+  const [showColorPicker, setShowColorPicker] = useState(false);
 
-    useEffect(() => {
-        const savedColor = localStorage.getItem('navbarColor');
-        if (savedColor) setNavbarColor(savedColor);
-    }, []);
+  useEffect(() => {
+    const savedColor = localStorage.getItem('navbarColor');
+    if (savedColor) setNavbarColor(savedColor);
+  }, []);
+  useEffect(() => { localStorage.setItem('navbarColor', navbarColor); }, [navbarColor]);
+  useEffect(() => {
+    document.body.style.overflow = isOpen ? 'hidden' : '';
+    return () => { document.body.style.overflow = ''; };
+  }, [isOpen]);
 
-    useEffect(() => {
-        localStorage.setItem('navbarColor', navbarColor);
-    }, [navbarColor]);
+  return (
+    <>
+      <button
+        type="button"
+        onClick={() => setIsOpen((open) => !open)}
+        aria-label={isOpen ? 'Close navigation menu' : 'Open navigation menu'}
+        aria-expanded={isOpen}
+        style={{ backgroundColor: navbarColor }}
+        className="fixed -left-10 top-1/2 z-[80] flex h-28 w-11 -translate-y-1/2 flex-col items-center justify-center gap-3 rounded-r-xl border-y border-r border-black/15 shadow-lg transition-[left] duration-300 hover:left-0 focus-visible:left-0 focus:outline-none focus:ring-2 focus:ring-blue-400"
+      >
+        <img className="h-7 w-7 object-contain" alt="" src={logo} />
+        <span className="h-px w-6 bg-black/20" />
+        {isOpen ? <HiOutlineX className="h-5 w-5 text-gray-900" /> : <HiMenuAlt3 className="h-5 w-5 text-gray-900" />}
+      </button>
 
-    return (
-        <nav style={{ backgroundColor: navbarColor }} className="fixed shadow-md shadow-slate-600 w-screen text-black-100 backdrop-blur-lg z-50 py-3">
-            <div className="flex items-center justify-between  px-10">
-                <div className="flex space-x-10 align-center">
-                    <Link to="/" className="flex gap-2 text-2xl font-bold  items-center sm:flex ">
-                        <img className='w-16 mr-2' alt='logo' src={logo} />
-                        <span>Smart Rate</span>
-                    </Link>
-                    <ul className="hidden  items-center md:flex text-lg tracking-widest ">
-                        <li className='hover:invert-0.4'>
-                            <Link className='mx-1 px-2 font-bold' to='/rate_calculator'>Rate Calculator</Link>
-                        </li>
-                        <li className='hover:invert-0.4'>
-                            <Link className='mx-1 px-2 font-bold' to='/data_search'>Data Search</Link>
-                            {/* style={({ isActive }) => ({ color: isActive ? 'cyan' : 'white' })} */}
-                            {/* style={({ isActive }) => ({ color: isActive ? 'cyan' : 'white' })} */}
-                        </li>
-                        <li className='hover:invert-0.4'>
-                            <Link className='mx-1 px-2 font-bold' to='/box_rate'>Interlock</Link>
-                            {/* style={({ isActive }) => ({ color: isActive ? 'cyan' : 'white' })} */}
-                            {/* style={({ isActive }) => ({ color: isActive ? 'cyan' : 'white' })} */}
-                        </li>
-                        <li className='hover:invert-0.4'>
-                            <Link className='mx-1 px-2 font-bold' to='/box_search'>InterlockData</Link>
-                            {/* style={({ isActive }) => ({ color: isActive ? 'cyan' : 'white' })} */}
-                            {/* style={({ isActive }) => ({ color: isActive ? 'cyan' : 'white' })} */}
-                        </li>
-                        <li className='hover:invert-0.4'>
-                            <Link className='mx-1 px-2 font-bold' to='/box_universal'>Universal</Link>
-                            {/* style={({ isActive }) => ({ color: isActive ? 'cyan' : 'white' })} */}
-                            {/* style={({ isActive }) => ({ color: isActive ? 'cyan' : 'white' })} */}
-                        </li>
-                        <li className='hover:invert-0.4'>
-                            <Link className='mx-1 px-2 font-bold' to='/box_universal_search'>UniversalData</Link>
-                            {/* style={({ isActive }) => ({ color: isActive ? 'cyan' : 'white' })} */}
-                            {/* style={({ isActive }) => ({ color: isActive ? 'cyan' : 'white' })} */}
-                        </li>
-                        <li className='hover:invert-0.4'>
-                            <Link className='mx-1 px-2 font-bold' to='/corrugated_calculator'>Corrugated Calculator</Link>
-                        </li>
-                        <li className='hover:invert-0.4'>
-                            <Link className='mx-1 px-2 font-bold' to='/corrugated_data'>Corrugated Data</Link>
-                        </li>
+      <header className="fixed inset-x-0 top-0 z-50 flex h-16 items-center justify-between border-b border-white/10 bg-slate-800 px-4 shadow-md sm:px-6">
+        <Link to="/" onClick={() => setIsOpen(false)} className="flex h-full w-fit items-center gap-3 text-xl font-bold leading-none text-white">
+          <img className="h-10 w-10 shrink-0 object-contain" alt="Smart Rate logo" src={logo} />
+          <span className="whitespace-nowrap">Smart Rate</span>
+        </Link>
+        <button
+          type="button"
+          onClick={() => setIsOpen(true)}
+          aria-label="Open navigation menu"
+          className="flex items-center gap-2 rounded-lg border border-white/20 px-3 py-2 text-sm font-semibold text-white transition-colors hover:border-white/35 hover:bg-white/10 focus:outline-none focus:ring-2 focus:ring-amber-300"
+        >
+          <HiMenuAlt3 className="h-5 w-5" />
+          <span>Menu</span>
+        </button>
+      </header>
 
-                    </ul>
+      <button
+        type="button"
+        aria-label="Close navigation menu"
+        onClick={() => setIsOpen(false)}
+        className={`fixed inset-0 z-[60] bg-black/50 transition-opacity duration-300 ${isOpen ? 'opacity-100' : 'pointer-events-none opacity-0'}`}
+      />
 
+      <aside
+        aria-hidden={!isOpen}
+        style={{ backgroundColor: navbarColor }}
+        className={`fixed left-0 top-1/2 z-[70] flex h-[90vh] max-h-[96vh] w-72 max-w-[85vw] -translate-y-1/2 flex-col rounded-r-xl shadow-2xl transition-transform duration-300 ease-in-out ${isOpen ? 'translate-x-0' : '-translate-x-full'}`}
+      >
+        <div className="flex items-center justify-center border-b border-black/10 px-5 py-4">
+          <img className="h-10 w-10 object-contain" alt="Smart Rate logo" src={logo} />
+        </div>
+        <nav aria-label="Main navigation" className="flex-1 overflow-y-auto px-3 py-4">
+          <p className="px-3 pb-2 text-xs font-semibold uppercase tracking-widest text-gray-700/80">Menu</p>
+          {links.map(([label, to]) => (
+            <Link key={to} to={to} onClick={() => setIsOpen(false)} tabIndex={isOpen ? 0 : -1} className="mb-1 block rounded-lg px-3 py-2.5 font-semibold text-gray-900 transition-colors hover:bg-black/10 focus:bg-black/10 focus:outline-none">
+              {label}
+            </Link>
+          ))}
+        </nav>
+        <div className="relative border-t border-black/10 p-4">
+          <div className="flex items-center justify-between">
+            <button onClick={() => setShowColorPicker((show) => !show)} className="rounded-md px-3 py-2 text-sm font-semibold text-gray-900 hover:bg-black/10">Navbar color</button>
+            <button onClick={() => window.close()} className="rounded-md px-3 py-2 text-sm font-semibold text-gray-900 hover:bg-black/10">Close app</button>
+          </div>
+          {showColorPicker && <div className="absolute bottom-full left-3 z-[90] mb-2"><SketchPicker color={navbarColor} onChangeComplete={(color) => setNavbarColor(color.hex)} /></div>}
+        </div>
+      </aside>
+    </>
+  );
+};
 
-
-                </div>
-
-                <div className=" flex items-center" onClick={() => setIsOpen(!isOpen)}>
-                    <button className="outline-none p-2  md:hidden mobile-menu-button bg-slate-500/30 rounded-full border-1 border-gray-500 select-none focus:bg-slate-800">
-                        {isOpen ? <HiOutlineX className='text-2xl text-gray-200' /> :
-                            <HiMenuAlt3 className='text-2xl text-gray-200' />
-                        }
-                    </button>
-                    <div className="relative z-50">
-                        <button
-                            onClick={() => setShowColorPicker(!showColorPicker)}
-                            className="rounded-full p-2 mx-1 bg-white shadow hover:bg-gray-100 border border-gray-300"
-                            title="Pick Navbar Color"
-                        >
-                            🎨
-                        </button>
-                        {showColorPicker && (
-                            <div className="absolute right-0 top-full mt-2 shadow-lg">
-                                <SketchPicker
-                                    color={navbarColor}
-                                    onChangeComplete={(color) => setNavbarColor(color.hex)}
-                                />
-                            </div>
-                        )}
-                    </div>
-
-
-                    {/* onClick={()=>closeWindow()} */}
-                    <button type="button" onClick={() => closeWindow()} className=" rounded-md p-2 inline-flex items-center justify-center text-gray-400 hover:text-gray-500 hover:bg-gray-100 focus:outline-none focus:ring-2 focus:ring-inset focus:ring-indigo-500">
-                        <span className="sr-only">Close menu</span>
-                        <svg className="h-6 w-6" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke="currentColor" aria-hidden="true">
-                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12" />
-                        </svg>
-                    </button>
-                </div>
-
-
-
-            </div>
-            {/* Menu  Mobile*/}
-            <Transition show={isOpen}
-                enter="transition ease-out duration-100 transform"
-                enterFrom="opacity-0 scale-95"
-                enterTo="opacity-100 scale-100"
-                leave="transition ease-in duration-75 transform"
-                leaveFrom="opacity-100 scale-100"
-                leaveTo="opacity-0 scale-95"
-            >
-                {
-                    (ref) => (
-                        <div className="md:hidden " id="mobile-menu">
-                            <div
-                                ref={ref}
-                                className="dark:bg-transparent dark:text-white mx-4 pt-4 pb-4 space-y-1"
-                            >
-                                <Link
-                                    to="/"
-                                    className="cursor-pointer hover:bg-blue-900/30 text-black dark:text-gray-200 hover:text-white block px-3 py-2 rounded-md text-base font-medium"
-                                >
-                                    Calculator
-                                </Link>
-
-                                <Link
-                                    to="/data_seacrh"
-                                    className="cursor-pointer hover:bg-blue-900/30 text-black dark:text-gray-200 hover:text-white block px-3 py-2 rounded-md text-base font-medium"
-                                >
-                                    DataSearch
-                                </Link>
-                                <Link to="/corrugated_calculator" className="cursor-pointer hover:bg-blue-900/30 text-black dark:text-gray-200 hover:text-white block px-3 py-2 rounded-md text-base font-medium">Corrugated Calculator</Link>
-                                <Link to="/corrugated_data" className="cursor-pointer hover:bg-blue-900/30 text-black dark:text-gray-200 hover:text-white block px-3 py-2 rounded-md text-base font-medium">Corrugated Data</Link>
-                            </div>
-                        </div>
-                    )
-                }
-            </Transition>
-
-        </nav >
-    )
-}
-
-export default Navbar
+export default Navbar;
