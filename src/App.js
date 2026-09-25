@@ -14,6 +14,8 @@ import BoxRate from './components/BoxRate';
 import BoxSearch from './components/BoxSearch';
 import BoxUniversal from './components/BoxUniversal';
 import BoxUniversalSearch from './components/BoxUniversalSearch';
+import CorrugatedCalculator from './components/CorrugatedCalculator';
+import CorrugatedData from './components/CorrugatedData';
 import { ensureAllEnvJsonFiles } from './utils/jsonFile';
 
 function App() {
@@ -36,6 +38,8 @@ function App() {
           <Route path='/box_search' element={<BoxSearch/>} />
           <Route path='/box_universal' element={<BoxUniversal/>} />
           <Route path='/box_universal_search' element={<BoxUniversalSearch/>} />
+          <Route path='/corrugated_calculator' element={<CorrugatedCalculator />} />
+          <Route path='/corrugated_data' element={<CorrugatedData />} />
 
 
 

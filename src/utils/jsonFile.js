@@ -71,5 +71,6 @@ export const ensureAllEnvJsonFiles = async () => {
     ensureJsonFile(process.env.REACT_APP_INPUTFILE),
     ensureJsonFile(process.env.REACT_APP_INPUTBOXFILE),
     ensureJsonFile(process.env.REACT_APP_INPUTUNIVERSALFILE),
+    ensureJsonFile(process.env.REACT_APP_INPUTCORRUGATEDFILE),
   ]);
 };

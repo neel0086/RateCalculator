@@ -66,6 +66,12 @@ const Navbar = () => {
                             {/* style={({ isActive }) => ({ color: isActive ? 'cyan' : 'white' })} */}
                             {/* style={({ isActive }) => ({ color: isActive ? 'cyan' : 'white' })} */}
                         </li>
+                        <li className='hover:invert-0.4'>
+                            <Link className='mx-1 px-2 font-bold' to='/corrugated_calculator'>Corrugated Calculator</Link>
+                        </li>
+                        <li className='hover:invert-0.4'>
+                            <Link className='mx-1 px-2 font-bold' to='/corrugated_data'>Corrugated Data</Link>
+                        </li>
 
                     </ul>
 
@@ -139,6 +145,8 @@ const Navbar = () => {
                                 >
                                     DataSearch
                                 </Link>
+                                <Link to="/corrugated_calculator" className="cursor-pointer hover:bg-blue-900/30 text-black dark:text-gray-200 hover:text-white block px-3 py-2 rounded-md text-base font-medium">Corrugated Calculator</Link>
+                                <Link to="/corrugated_data" className="cursor-pointer hover:bg-blue-900/30 text-black dark:text-gray-200 hover:text-white block px-3 py-2 rounded-md text-base font-medium">Corrugated Data</Link>
                             </div>
                         </div>
                     )
