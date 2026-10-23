@@ -12,7 +12,17 @@ import SelectAllWithModal from './SelectAllWithModal';
 import { readCompanyFile, replaceCompanyData, writeCompanyFile } from '../utils/jsonFile';
 
 const phoneKeyWords = ['phone', 'mobile', 'contact', 'whatsapp', 'whats_app', 'number'];
-
+const DEFAULT_PRINT_FIELDS = [
+  { key: 'company_name', label: 'Company Name' },
+  { key: 'product_name', label: 'Product Name' },
+  { key: 'box_size', label: 'Size' },
+  { key: 'remarks', label: 'Remarks' },
+  { key: 'quantity', label: 'Quantity' },
+  { key: 'board', label: 'Board1' },
+  { key: 'board1', label: 'Board2' },
+  { key: 'board2', label: 'Board3' },
+  { key: 'colors', label: 'Color' },
+];
 const normalizePhone = (value) => String(value || '').replace(/\D/g, '');
 
 const getPhoneFromRow = (row) => {
@@ -127,6 +137,9 @@ const DataSearch = ({ contract }) => {
   const [wText, setWText] = useState("")
   const [printData, setPrintData] = useState("")
   const [printPreview, setPrintPreview] = useState("")
+  const [extraPrintFields, setExtraPrintFields] = useState([])
+  const [showPrintFieldPicker, setShowPrintFieldPicker] = useState(false)
+  const [selectedPrintFields, setSelectedPrintFields] = useState([])
 
   const [printModal, setPrintModal] = useState(false)
 
@@ -224,46 +237,50 @@ const DataSearch = ({ contract }) => {
     XLSX.writeFile(workbook, 'selected_data.xlsx');
   }
 
-  const changeWText = (e) => {
+  const getPrintRecord = (value) => {
+    const srNumber = parseInt(value, 10);
+    if (!Number.isInteger(srNumber) || srNumber < 1) return null;
+    return dataValues?.find((record) => Number(record.srno) + 1 === srNumber) || dataValues?.[srNumber - 1] || null;
+  };
+
+  const getPrintKeys = (record) => Object.keys(record || {}).filter((key) => key.toLowerCase() !== 'numbering');
+
+  const changeWText = (e, fields = extraPrintFields, includedKeys = selectedPrintFields) => {
     try {
-      setPrintData(
-        "<table class='center'>" +
-        "<tr><th>Company Name</th><td>" + dataValues[parseInt(e.target.value) - 1].company_name + "</td></tr>" +
-        "<tr><th>Product Name</th><td>" + dataValues[parseInt(e.target.value) - 1].product_name + "</td></tr>" +
-        "<tr><th>Size</th><td>" + dataValues[parseInt(e.target.value) - 1].box_size + "</td></tr>" +
-        "<tr><th>Remarks</th><td>" + dataValues[parseInt(e.target.value) - 1].remarks + "</td></tr>" +
-        "<tr><th>Quantity</th><td>" + dataValues[parseInt(e.target.value) - 1].quantity + "</td></tr>" +
-        "<tr><th>Board1</th><td>" + dataValues[parseInt(e.target.value) - 1].board + "</td></tr>" +
-        "<tr><th>Board2</th><td>" + dataValues[parseInt(e.target.value) - 1].board1 + "</td></tr>" +
-        "<tr><th>Board3</th><td>" + dataValues[parseInt(e.target.value) - 1].board2 + "</td></tr>" +
-        "</table>"
-      )
-      setPrintPreview(
-
-        "Company Name : " + dataValues[parseInt(e.target.value) - 1].company_name + "\n"
-        + "Product Name : " + dataValues[parseInt(e.target.value) - 1].product_name + "\n"
-        + "Size : " + dataValues[parseInt(e.target.value) - 1].box_size + "\n"
-        + "Remarks : " + dataValues[parseInt(e.target.value) - 1].remarks + "\n"
-        + "Quantity : " + dataValues[parseInt(e.target.value) - 1].quantity + "\n"
-        + "Board1 : " + dataValues[parseInt(e.target.value) - 1].board + "\n"
-        + "board2 : " + dataValues[parseInt(e.target.value) - 1].board1 + '\n'
-        + "board3 : " + dataValues[parseInt(e.target.value) - 1].board2 + '\n'
-      )
-
-      setWText("Company Name : " + dataValues[parseInt(e.target.value) - 1].company_name + "\n"
-        + "Product Name : " + dataValues[parseInt(e.target.value) - 1].product_name + "\n"
-        + "Size : " + dataValues[parseInt(e.target.value) - 1].box_size + "\n"
-        + "Other Information : " + dataValues[parseInt(e.target.value) - 1].remarks + "\n"
-        + "Quantity : " + dataValues[parseInt(e.target.value) - 1].quantity + "\n"
-        + "Grand Total : " + dataValues[parseInt(e.target.value) - 1].grand_total + "\n"
-        + "Rate Per Piece : " + dataValues[parseInt(e.target.value) - 1].rate_per_piece
-      )
+      const escapeHtml = (value) => String(value ?? '').replace(/[&<>"']/g, (char) => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[char]));
+      const record = getPrintRecord(e.target.value);
+      if (!record) throw new Error('Record not found');
+      const availableKeys = getPrintKeys(record);
+      const defaultKeys = DEFAULT_PRINT_FIELDS.map(({ key }) => key).filter((key) => availableKeys.includes(key));
+      const activeKeys = includedKeys || defaultKeys;
+      const printRows = [
+        ...DEFAULT_PRINT_FIELDS.filter(({ key }) => availableKeys.includes(key) && activeKeys.includes(key))
+          .map(({ key, label }) => ({ key: label, value: record[key] })),
+        ...availableKeys.filter((key) => !defaultKeys.includes(key) && activeKeys.includes(key))
+          .map((key) => ({ key, value: record[key] })),
+      ];
+      const customRows = fields.filter((field) => field.key.trim() || field.value.trim());
+      const htmlRows = printRows.map(({ key, value }) => `<tr><th>${escapeHtml(key)}</th><td>${escapeHtml(value)}</td></tr>`).join('');
+      const extraHtmlRows = customRows.map((field) => `<tr><th>${escapeHtml(field.key)}</th><td>${escapeHtml(field.value)}</td></tr>`).join('');
+      setPrintData(`<table class='center'>${htmlRows}${extraHtmlRows}</table>`);
+      setPrintPreview([
+        ...printRows.map(({ key, value }) => `${key} : ${value ?? ''}`),
+        ...customRows.map((field) => `${field.key} : ${field.value}`),
+      ].join('\n'));
+      setWText(`Company Name : ${record.company_name || ''}\nProduct Name : ${record.product_name || ''}\nSize : ${record.box_size || ''}\nOther Information : ${record.remarks || ''}\nQuantity : ${record.quantity || ''}\nGrand Total : ${record.grand_total || ''}\nRate Per Piece : ${record.rate_per_piece || ''}`);
+    } catch (e) {
+      setWText('Please re-enter the proper number');
+      setPrintData('');
+      setPrintPreview('');
     }
-    catch (e) {
-      setWText("Please re-enter the proper number")
-    }
-  }
+  };
 
+  const togglePrintField = (key) => {
+    const current = selectedPrintFields;
+    const next = current.includes(key) ? current.filter((field) => field !== key) : [...current, key];
+    setSelectedPrintFields(next);
+    if (wid) changeWText({ target: { value: wid } }, extraPrintFields, next);
+  };
   const handlePhoneChange = (value) => {
     setPhoneNUmber(value);
     setShowPhoneSuggestions(Boolean(value));
@@ -350,19 +367,23 @@ const DataSearch = ({ contract }) => {
     printWindow.document.write('<html><head><title>Print</title>');
     printWindow.document.write(
       '<style>' +
-      'table { border-collapse: collapse; margin: 0 auto; border: 1px solid black; }' +
-      'th, td { padding: 5px; margin-right: 20px; font-size: 16px; font-family: Roboto, Arial, sans-serif; border: 1px solid black; }' +
-      '.header-row { display: flex; justify-content: space-between; margin-bottom: 20px; }' +
-      '.company-name { font-size: 20px; margin-right: 20px; }' +
-      '.date { font-size: 14px; }' +
+      '@page { margin: 5mm; }' +
+      'body { margin: 0; font-family: Roboto, Arial, sans-serif; color: #000; }' +
+      '.print-content { width: max-content; max-width: 100%; margin: 0 auto; }' +
+      'table { width: 100%; max-width: 100%; border-collapse: collapse; margin: 0; border: 1px solid black; table-layout: auto; }' +
+      'th, td { padding: 4px 6px; font-size: 14px; line-height: 1.15; text-align: left; vertical-align: top; border: 1px solid black; overflow-wrap: anywhere; }' +
+      '.header-row { display: flex; flex-direction: row; justify-content: space-between; align-items: center; gap: 12px; margin: 0 0 2px; width: 100%; max-width: 100%; box-sizing: border-box; text-align: center; }' +
+      '.company-name { min-width: 0; font-size: 12px; font-weight: bold; margin: 0; line-height: 1.1; text-align: left; overflow-wrap: anywhere; }' +
+      '.date { flex: 0 0 auto; font-size: 10px; margin: 0; line-height: 1.1; text-align: right; white-space: nowrap; }' +
       '</style>'
     );
     printWindow.document.write('</head><body>');
-    printWindow.document.write('<div class="header-row">');
+    printWindow.document.write('<div class="print-content"><div class="header-row">');
     printWindow.document.write('<div class="company-name">Shree Vallabh Packaging</div>');
     printWindow.document.write('<div class="date">' + currentDate + '</div>');
     printWindow.document.write('</div>');
     printWindow.document.write(printData);
+    printWindow.document.write('</div>');
     printWindow.document.write('</body></html>');
     printWindow.document.close();
     printWindow.print();
@@ -533,7 +554,7 @@ const DataSearch = ({ contract }) => {
           </div>
 
           <div className={`absolute flex justify-center items-center z-50 ${mssgModal ? "block" : 'hidden'} p-4 overflow-x-hidden overflow-y-auto md:inset-0 h-[calc(100%-1rem)] md:h-full`}>
-            <div className="relative  w-full h-full max-w-md md:h-auto">
+            <div className="relative w-full h-full max-w-md md:h-auto">
               <div className="relative bg-white rounded-lg shadow dark:bg-gray-700">
                 <button type="button" onClick={(e) => { setMssgModal(false) }} className="absolute top-3 right-2.5 text-gray-400 bg-transparent hover:bg-gray-200 hover:text-gray-900 rounded-lg text-sm p-1.5 ml-auto inline-flex items-center dark:hover:bg-gray-800 dark:hover:text-white">
                   <svg aria-hidden="true" className="w-5 h-5" fill="currentColor" viewBox="0 0 20 20" xmlns="http://www.w3.org/2000/svg"><path fill-rule="evenodd" d="M4.293 4.293a1 1 0 011.414 0L10 8.586l4.293-4.293a1 1 0 111.414 1.414L11.414 10l4.293 4.293a1 1 0 01-1.414 1.414L10 11.414l-4.293 4.293a1 1 0 01-1.414-1.414L8.586 10 4.293 5.707a1 1 0 010-1.414z" clip-rule="evenodd"></path></svg>
@@ -581,7 +602,7 @@ const DataSearch = ({ contract }) => {
                     </div>
                     <div id="dropdownHover" className="w-100 z-10 mt-4 mb-4 bg-white divide-y divide-gray-100 rounded-lg shadow w-100 dark:bg-gray-700">
                       <label for="w_num" className="block mb-2 text-sm font-medium text-gray-900 dark:text-white">Sr No</label>
-                      <input onChange={(e) => { setWid(e.target.value); changeWText(e) }} val={wid} type="text" name="w_num" id="w_num" className="bg-gray-50 border border-gray-300 text-gray-900 text-sm rounded-lg focus:ring-blue-500 focus:border-blue-500 block w-full p-2.5 dark:bg-gray-600 dark:border-gray-500 dark:placeholder-gray-400 dark:text-white" required />
+                      <input onChange={(e) => { const record = getPrintRecord(e.target.value); const defaults = DEFAULT_PRINT_FIELDS.map(({ key }) => key).filter((key) => getPrintKeys(record).includes(key)); setWid(e.target.value); setSelectedPrintFields(defaults); changeWText(e, extraPrintFields, defaults); }} value={wid} type="text" name="w_num" id="w_num" className="bg-gray-50 border border-gray-300 text-gray-900 text-sm rounded-lg focus:ring-blue-500 focus:border-blue-500 block w-full p-2.5 dark:bg-gray-600 dark:border-gray-500 dark:placeholder-gray-400 dark:text-white" required />
                     </div>
                     <div>
                       <label for="w-text" className="block mb-2 text-sm font-medium text-gray-900 dark:text-white">Please verify the text</label>
@@ -611,7 +632,7 @@ const DataSearch = ({ contract }) => {
           </div>
 
           <div className={`absolute flex justify-center items-center z-50 ${printModal ? "block" : 'hidden'} p-4 overflow-x-hidden overflow-y-auto md:inset-0 h-[calc(100%-1rem)] md:h-full`}>
-            <div className="relative  w-full h-full max-w-md md:h-auto">
+            <div className="relative w-full max-w-xl max-h-full overflow-y-auto md:h-auto">
               <div className="relative bg-white rounded-lg shadow dark:bg-gray-700">
                 <button type="button" onClick={(e) => { setPrintModal(false) }} className="absolute top-3 right-2.5 text-gray-400 bg-transparent hover:bg-gray-200 hover:text-gray-900 rounded-lg text-sm p-1.5 ml-auto inline-flex items-center dark:hover:bg-gray-800 dark:hover:text-white">
                   <svg aria-hidden="true" className="w-5 h-5" fill="currentColor" viewBox="0 0 20 20" xmlns="http://www.w3.org/2000/svg"><path fill-rule="evenodd" d="M4.293 4.293a1 1 0 011.414 0L10 8.586l4.293-4.293a1 1 0 111.414 1.414L11.414 10l4.293 4.293a1 1 0 01-1.414 1.414L10 11.414l-4.293 4.293a1 1 0 01-1.414-1.414L8.586 10 4.293 5.707a1 1 0 010-1.414z" clip-rule="evenodd"></path></svg>
@@ -621,7 +642,24 @@ const DataSearch = ({ contract }) => {
                   <div className='mb-4'>
                     <div id="dropdownHover" className="w-100 z-10 mt-4 mb-4 bg-white divide-y divide-gray-100 rounded-lg shadow w-100 dark:bg-gray-700">
                       <label for="w_num" className="block mb-2 text-sm font-medium text-gray-900 dark:text-white">Sr No</label>
-                      <input onChange={(e) => { setWid(e.target.value); changeWText(e) }} val={wid} type="text" name="w_num" id="w_num" className="bg-gray-50 border border-gray-300 text-gray-900 text-sm rounded-lg focus:ring-blue-500 focus:border-blue-500 block w-full p-2.5 dark:bg-gray-600 dark:border-gray-500 dark:placeholder-gray-400 dark:text-white" required />
+                      <input onChange={(e) => { const record = getPrintRecord(e.target.value); const defaults = DEFAULT_PRINT_FIELDS.map(({ key }) => key).filter((key) => getPrintKeys(record).includes(key)); setWid(e.target.value); setSelectedPrintFields(defaults); changeWText(e, extraPrintFields, defaults); }} value={wid} type="text" name="w_num" id="w_num" className="bg-gray-50 border border-gray-300 text-gray-900 text-sm rounded-lg focus:ring-blue-500 focus:border-blue-500 block w-full p-2.5 dark:bg-gray-600 dark:border-gray-500 dark:placeholder-gray-400 dark:text-white" required />
+                    </div>
+                    <div className="mb-4">
+                      <button type="button" disabled={!getPrintRecord(wid)} onClick={() => setShowPrintFieldPicker(true)} className="rounded bg-zinc-700 px-3 py-2 text-sm font-medium text-white hover:bg-zinc-800 disabled:cursor-not-allowed disabled:opacity-50">Choose print fields</button>
+                      <p className="mt-2 text-xs text-gray-500 dark:text-gray-300">The original print fields are included by default. Add or remove other saved fields as needed.</p>
+                    </div>
+                    <div className="mb-4">
+                      <div className="flex items-center justify-between mb-2">
+                        <label className="text-sm font-medium text-gray-900 dark:text-white">Extra print details</label>
+                        <button type="button" onClick={() => setExtraPrintFields([...extraPrintFields, { key: '', value: '' }])} className="text-sm text-blue-600 dark:text-blue-300">+ Add row</button>
+                      </div>
+                      {extraPrintFields.map((field, index) => (
+                        <div key={index} className="flex gap-2 mb-2">
+                          <input value={field.key} onChange={(e) => { const next = extraPrintFields.map((item, i) => i === index ? { ...item, key: e.target.value } : item); setExtraPrintFields(next); if (wid) changeWText({ target: { value: wid } }, next); }} placeholder="Key" className="min-w-0 w-5/12 p-2 border rounded dark:bg-gray-600 dark:text-white" />
+                          <input value={field.value} onChange={(e) => { const next = extraPrintFields.map((item, i) => i === index ? { ...item, value: e.target.value } : item); setExtraPrintFields(next); if (wid) changeWText({ target: { value: wid } }, next); }} placeholder="Value" className="min-w-0 w-5/12 p-2 border rounded dark:bg-gray-600 dark:text-white" />
+                          <button type="button" onClick={() => { const next = extraPrintFields.filter((_, i) => i !== index); setExtraPrintFields(next); if (wid) changeWText({ target: { value: wid } }, next); }} aria-label="Remove print detail" className="px-2 text-red-500">Remove</button>
+                        </div>
+                      ))}
                     </div>
                     <div>
                       <label for="w-text" className="block mb-2 text-sm font-medium text-gray-900 dark:text-white">Please verify the text</label>
@@ -644,6 +682,24 @@ const DataSearch = ({ contract }) => {
             </div>
           </div>
 
+            {showPrintFieldPicker && printModal && (
+              <div className="fixed inset-0 z-[70] flex items-center justify-center bg-black/60 p-4" role="dialog" aria-modal="true" aria-labelledby="print-fields-title">
+                <div className="w-full max-w-lg rounded-lg bg-white p-6 shadow-xl dark:bg-gray-700">
+                  <div className="mb-4 flex items-center justify-between">
+                    <h2 id="print-fields-title" className="text-lg font-semibold text-gray-900 dark:text-white">Choose saved data fields</h2>
+                    <button type="button" onClick={() => setShowPrintFieldPicker(false)} className="rounded px-3 py-1 text-gray-600 hover:bg-gray-200 dark:text-gray-200 dark:hover:bg-gray-600">Close</button>
+                  </div>
+                  <p className="mb-4 text-sm text-gray-600 dark:text-gray-300">The original print fields are selected by default. Click any key to add or remove its row.</p>
+                  <div className="flex max-h-72 flex-wrap gap-2 overflow-y-auto">
+                    {getPrintKeys(getPrintRecord(wid)).map((key) => {
+                      const included = selectedPrintFields.includes(key);
+                      const label = DEFAULT_PRINT_FIELDS.find(({ key: defaultKey }) => defaultKey === key)?.label || key;
+                      return <button key={key} type="button" aria-pressed={included} onClick={() => togglePrintField(key)} className={`rounded border px-3 py-2 text-sm ${included ? 'border-emerald-500 bg-emerald-700 text-white' : 'border-gray-400 bg-gray-200 text-gray-700'}`}>{included ? 'Included: ' : 'Add: '}{label}</button>;
+                    })}
+                  </div>
+                </div>
+              </div>
+            )}
           <div className={`absolute flex justify-center items-center z-50 ${deleteModal ? "block" : 'hidden'} p-4 overflow-x-hidden overflow-y-auto md:inset-0 h-[calc(100%-1rem)] md:h-full`}>
             <div class="relative w-full h-full max-w-md md:h-auto">
               <div class="relative bg-white rounded-lg shadow dark:bg-gray-700">

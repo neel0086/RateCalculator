@@ -1,21 +1,22 @@
 import React, { useEffect, useState } from 'react';
-import { Link } from 'react-router-dom';
+import { Link, useNavigate } from 'react-router-dom';
 import { HiMenuAlt3, HiOutlineX } from 'react-icons/hi';
 import { SketchPicker } from 'react-color';
 import logo from '../assets/logo.png';
 
 const links = [
-  ['Rate Calculator', '/rate_calculator'],
-  ['Data Search', '/data_search'],
-  ['Interlock Calculator', '/box_rate'],
-  ['Interlock Data', '/box_search'],
-  ['Universal Calculator', '/box_universal'],
-  ['Universal Data', '/box_universal_search'],
-  ['Corrugated Calculator', '/corrugated_calculator'],
-  ['Corrugated Data', '/corrugated_data'],
+  ['Rate Calculator', '/rate_calculator', '1'],
+  ['Data Search', '/data_search', '2'],
+  ['Interlock Calculator', '/box_rate', '3'],
+  ['Interlock Data', '/box_search', '4'],
+  ['Universal Calculator', '/box_universal', '5'],
+  ['Universal Data', '/box_universal_search', '6'],
+  ['Corrugated Calculator', '/corrugated_calculator', '7'],
+  ['Corrugated Data', '/corrugated_data', '8'],
 ];
 
 const Navbar = () => {
+  const navigate = useNavigate();
   const [isOpen, setIsOpen] = useState(false);
   const [navbarColor, setNavbarColor] = useState('#fde68a');
   const [showColorPicker, setShowColorPicker] = useState(false);
@@ -29,6 +30,23 @@ const Navbar = () => {
     document.body.style.overflow = isOpen ? 'hidden' : '';
     return () => { document.body.style.overflow = ''; };
   }, [isOpen]);
+  useEffect(() => {
+    const handleNavigationShortcut = (event) => {
+      if (!event.ctrlKey || event.altKey || event.shiftKey || event.repeat) return;
+      const target = event.target;
+      if (target instanceof HTMLElement && (target.isContentEditable || ['INPUT', 'TEXTAREA', 'SELECT'].includes(target.tagName))) return;
+
+      const link = links.find(([, , shortcut]) => shortcut === event.key);
+      if (!link) return;
+
+      event.preventDefault();
+      navigate(link[1]);
+      setIsOpen(false);
+    };
+
+    window.addEventListener('keydown', handleNavigationShortcut);
+    return () => window.removeEventListener('keydown', handleNavigationShortcut);
+  }, [navigate]);
 
   return (
     <>
@@ -78,9 +96,12 @@ const Navbar = () => {
         </div>
         <nav aria-label="Main navigation" className="flex-1 overflow-y-auto px-3 py-4">
           <p className="px-3 pb-2 text-xs font-semibold uppercase tracking-widest text-gray-700/80">Menu</p>
-          {links.map(([label, to]) => (
+          {links.map(([label, to, shortcut]) => (
             <Link key={to} to={to} onClick={() => setIsOpen(false)} tabIndex={isOpen ? 0 : -1} className="mb-1 block rounded-lg px-3 py-2.5 font-semibold text-gray-900 transition-colors hover:bg-black/10 focus:bg-black/10 focus:outline-none">
-              {label}
+              <span className="flex items-center justify-between gap-3">
+                <span>{label}</span>
+                <span className="text-xs font-medium text-gray-700/70">(Ctrl+{shortcut})</span>
+              </span>
             </Link>
           ))}
         </nav>

@@ -22,7 +22,6 @@ const BoxUniversal = () => {
 
     const [company_name, setCompany_name] = useState("")
     const [product_name, setProduct_name] = useState("")
-    const [saveDate, setSaveDate] = useState("")
     const [companyDrop, setCompanyDrop] = useState(false)
     const [company_suggestion, setCompany_suggestion] = useState([])
     const [inpIndex, setInpIndex] = useState(-1)
@@ -44,14 +43,14 @@ const BoxUniversal = () => {
     const navigate = useNavigate();
 
     const changeValues = async (val, key) => {
-        var y = ("marginL" == key ? val : marginL)
-        var w = ("marginB" == key ? val : marginB)
+        var y = ("marginL" === key ? val : marginL)
+        var w = ("marginB" === key ? val : marginB)
         
-        var rowL = ("rows" == key ? val : rows)
-        var colL = ("cols" == key ? val : cols)
+        var rowL = ("rows" === key ? val : rows)
+        var colL = ("cols" === key ? val : cols)
         setUps(rowL * colL)
-        if (rowL != 0) {
-            var x = ("cFlap" == key ? val : cFlap) * 2 +  ("size3" == key ? val : size3)
+        if (rowL !== 0) {
+            var x = ("cFlap" === key ? val : cFlap) * 2 +  ("size3" === key ? val : size3)
             var a=y+x*rowL
             setSheetSizeL(a)
             setSheetSizeInchL((a/25.4).toFixed(5))
@@ -60,8 +59,8 @@ const BoxUniversal = () => {
         else {
             setSheetSizeL(0)
         }
-        var z = (("size1" == key ? val : size1) * 2 + ("size2" == key ? val : size2) * 2 + ("pFlap" == key ? val : pFlap))
-        var b=w + z * ("cols" == key ? val : cols)
+        var z = (("size1" === key ? val : size1) * 2 + ("size2" === key ? val : size2) * 2 + ("pFlap" === key ? val : pFlap))
+        var b=w + z * ("cols" === key ? val : cols)
         setSheetSizeB(b)
         setSheetSizeInchB((b/25.4).toFixed(5))
         setBoxSize(x + "X" + z)
@@ -73,7 +72,6 @@ const BoxUniversal = () => {
         var options = { timeZone: 'Asia/Kolkata', day: 'numeric', month: 'numeric', year: 'numeric' };
         var newdate = dateObj.toLocaleString('en-US', options);
 
-        setSaveDate(newdate)
         const jsonValues = {
             company_name: company_name,
             product_name: product_name,
@@ -107,13 +105,10 @@ const BoxUniversal = () => {
     }
     const location = useLocation();
     const dataObj = location.state;
-    var data, index;
-    if (dataObj) {
-        data = dataObj[0]
-        index = dataObj[1]
-    }
+    const data = dataObj?.[0];
+    const index = dataObj?.[1];
     useEffect(() => {
-        if (!data) return 0;
+        if (!data) return;
         setCompany_name(data.company_name)
         setProduct_name(data.product_name)
         setSize1(data.size1)
@@ -124,12 +119,12 @@ const BoxUniversal = () => {
         setCols(data.cols)
         setSheetSizeL(data.sheet_sizeL)
         setSheetSizeB(data.sheet_sizeB)
-        setMarginL(marginL)
-        setMarginB(marginB)
-        setBoxSize(boxSize)
-        setUps(ups)
+        setMarginL(data.marginL)
+        setMarginB(data.marginB)
+        setBoxSize(data.boxSize)
+        setUps(data.ups)
 
-    }, [])
+    }, [data])
 
     const updateToJson = async () => {
         var dateObj = new Date();
@@ -216,7 +211,7 @@ const BoxUniversal = () => {
 
 
     const SearchData = async (e) => {
-        if (e.target.value == "") setCompany_suggestion(dataValues)
+        if (e.target.value === "") setCompany_suggestion(dataValues)
         var searchKey = e.target.value
         var temp = [e.target.value]
         var temp1 = new Set()
@@ -240,12 +235,12 @@ const BoxUniversal = () => {
     }
     const handleKey = (e) => {
         e.stopPropagation()
-        if (e.keyCode == 40) {
+        if (e.keyCode === 40) {
             setInpIndex((inpIndex + 1) % company_suggestion.length)
             setCompany_name(company_suggestion[(inpIndex + 1) % company_suggestion.length])
         }
-        else if (e.keyCode == 38) {
-            if (inpIndex == 0) {
+        else if (e.keyCode === 38) {
+            if (inpIndex === 0) {
                 var cIndex = company_suggestion.length - 1
                 setInpIndex(cIndex)
                 setCompany_name(company_suggestion[cIndex])
@@ -255,7 +250,7 @@ const BoxUniversal = () => {
                 setCompany_name(company_suggestion[(inpIndex - 1) % company_suggestion.length])
             }
         }
-        else if (e.keyCode == 13) {
+        else if (e.keyCode === 13) {
             setCompanyDrop(false)
         }
     }
@@ -274,7 +269,6 @@ const BoxUniversal = () => {
         setSheetSizeInchB(0)
         setMarginL(0)
         setMarginB(0)
-        setSaveDate(0);
         setBoxSize(0)
         setUps(0)
 
@@ -298,8 +292,8 @@ const BoxUniversal = () => {
                                             !company_suggestion ? "" :
                                                 company_suggestion.map(function (data, index) {
                                                     return (
-                                                        index != 0 &&
-                                                        <li key={index} className={`flex ${inpIndex == index ? "bg-gray-100" : ""} items-center px-4 py-2 hover:bg-gray-100 dark:hover:bg-gray-600 dark:hover:text-white`}>
+                                                        index !== 0 &&
+                                                        <li key={index} className={`flex ${inpIndex === index ? "bg-gray-100" : ""} items-center px-4 py-2 hover:bg-gray-100 dark:hover:bg-gray-600 dark:hover:text-white`}>
                                                             {data}
                                                         </li>
 
@@ -349,13 +343,13 @@ const BoxUniversal = () => {
                             </div>
 
                             <div>
-                                <label className="text-white text-lg dark:text-gray-200 flex" for="rows">Rows &nbsp;&nbsp;<span><img src={UpArrow} /></span></label>
+                                <label className="text-white text-lg dark:text-gray-200 flex" for="rows">Rows &nbsp;&nbsp;<span><img src={UpArrow} alt="Rows" /></span></label>
                                 <input value={rows} id="rows" type="number" onChange={(e) => { setRows(doMaths(e)); changeValues(parseFloat(e.target.value), "rows") }} className="block text-xl  w-40 px-4 py-2 mt-2 text-gray-700 bg-white border border-gray-300 rounded-md dark:bg-gray-800 dark:text-gray-300 dark:border-gray-600 focus:border-blue-500 dark:focus:border-blue-500 focus:outline-none focus:ring" />
                                 
                             </div>
 
                             <div>
-                                <label className="text-white text-lg dark:text-gray-200 flex" for="cols">Columns &nbsp;&nbsp;<span><img src={RightArrow} /></span></label>
+                                <label className="text-white text-lg dark:text-gray-200 flex" for="cols">Columns &nbsp;&nbsp;<span><img src={RightArrow} alt="Columns" /></span></label>
                                 <input onChange={(e) => { setCols(doMaths(e)); changeValues(parseFloat(e.target.value), "cols") }} value={cols} id="cols" type="number" className="block text-xl  w-40 px-4 py-2 mt-2 text-gray-700 bg-white border border-gray-300 rounded-md dark:bg-gray-800 dark:text-gray-300 dark:border-gray-600 focus:border-blue-500 dark:focus:border-blue-500 focus:outline-none focus:ring" />
                             </div>
                             <div>

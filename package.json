@@ -39,14 +39,16 @@
     "xlsx": "^0.18.5"
   },
   "scripts": {
-    "react-start": "react-scripts start",
+    "postinstall": "node scripts/patch-cra-deprecations.js",
+    "react-start": "cross-env BROWSERSLIST_IGNORE_OLD_DATA=true react-scripts start",
     "react-build": "react-scripts build",
     "react-test": "react-scripts test",
     "react-eject": "react-scripts eject",
     "electron-build": "electron-builder",
     "build": "npm run react-build && npm run electron-build",
     "build:installer": "powershell -ExecutionPolicy Bypass -File scripts/build-installer.ps1",
-    "start": "concurrently \"cross-env BROWSER=none npm run react-start\" \"wait-on http://localhost:3000 && electron .\""
+    "start": "node scripts/start.js",
+    "start-app": "concurrently \"cross-env BROWSER=none npm run react-start\" \"wait-on http://localhost:3000 && electron .\""
   },
   "build": {
     "appId": "com.shreevallabh.smart-rate-calculator",
@@ -83,7 +85,7 @@
           ]
         }
       ],
-      "icon": "public/logo512.png",
+      "icon": "public/company-logo.png",
       "artifactName": "${productName}-Setup-${version}.${ext}"
     },
     "nsis": {

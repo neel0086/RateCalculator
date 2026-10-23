@@ -1,11 +1,10 @@
 import React, { useState, useEffect } from 'react'
-import { Link, useNavigate } from 'react-router-dom';
+import { useNavigate } from 'react-router-dom';
 import Loading from './Loading';
 import "./DataSearch.css"
 import Whatsapp from "../assets/whatsapp.png"
 import * as XLSX from 'xlsx';
 import AscendingIcon from '../assets/ascending.png'
-import DescendingIcon from '../assets/descending.png'
 import { readCompanyFile, replaceCompanyData, writeCompanyFile } from '../utils/jsonFile';
 
 const BoxSearch = ({ contract }) => {
@@ -34,7 +33,7 @@ const BoxSearch = ({ contract }) => {
   }, [])
   const navigate = useNavigate();
   const SearchData = async (e) => {
-    if (e.target.value == "") setSearchData(dataValues)
+    if (e.target.value === "") setSearchData(dataValues)
     var searchKey = e.target.value
     var temp = []
     dataValues.forEach((key, index) => {
@@ -108,7 +107,7 @@ const BoxSearch = ({ contract }) => {
       let temp = []
       let dindex = 0
       data_values.companyData.forEach((key, index) => {
-        if (parseInt(key.srno) != parseInt(deleteIndex)) {
+        if (parseInt(key.srno, 10) !== parseInt(deleteIndex, 10)) {
           key.srno = dindex++
           temp.push(key)
         }
@@ -155,7 +154,7 @@ const BoxSearch = ({ contract }) => {
               {/* <a href="https://wa.me/919825328865?text=hello" target="_blank" rel="noopener noreferrer"> */}
               <button onClick={(e) => setMssgModal(true)} className="text-white text-xl h-fit bg-zinc-700 hover:bg-zinc-800 focus:ring-4 focus:outline-none focus:ring-blue-300 font-medium rounded-lg text-sm px-4 py-2 mt-2 mr-2">
 
-                <span className="relative"><img src={Whatsapp} /></span>
+                <span className="relative"><img src={Whatsapp} alt="WhatsApp" /></span>
               </button>
             </div>
           </div>
@@ -169,7 +168,7 @@ const BoxSearch = ({ contract }) => {
                   </th>
                   <th scope="col" className="px-6 py-3">
                     <div className='flex'>
-                      Sr no. <img src={AscendingIcon} className='pl-2 cursor-pointer' onClick={() => { setSearchData([...searchData].reverse()) }} />
+                      Sr no. <img src={AscendingIcon} alt="Sort ascending" className='pl-2 cursor-pointer' onClick={() => { setSearchData([...searchData].reverse()) }} />
                     </div>
                   </th>
                   <th scope="col" className="px-6 py-3">

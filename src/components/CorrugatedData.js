@@ -1,4 +1,4 @@
-import React, { useEffect, useMemo, useState } from 'react';
+import React, { useCallback, useEffect, useMemo, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import * as XLSX from 'xlsx';
 import Loading from './Loading';
@@ -20,7 +20,7 @@ const CorrugatedData = () => {
   const [isLoading, setIsLoading] = useState(false);
   const filePath = process.env.REACT_APP_INPUTCORRUGATEDFILE;
 
-  const refresh = async () => {
+  const refresh = useCallback(async () => {
     try {
       const data = await readCompanyFile(filePath);
       setRecords(data.companyData);
@@ -30,8 +30,8 @@ const CorrugatedData = () => {
       setRecords([]);
       setError('Unable to read corrugated data. Check the JSON path in .env.');
     }
-  };
-  useEffect(() => { refresh(); }, []);
+  }, [filePath]);
+  useEffect(() => { refresh(); }, [refresh]);
 
   const visibleRecords = useMemo(() => (records || [])
     .map((record, index) => [record, index])

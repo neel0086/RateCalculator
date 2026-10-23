@@ -8,10 +8,12 @@ const {ipcMain} = require('electron')
 let mainWindow;
 function createWindow() {
   mainWindow = new BrowserWindow({
-    width: '100%',
-    height: '100%',
-    title:"Turbine",
+    width: 1280,
+    height: 800,
+    title: "Smart Rate Calculator",
     frame: false,
+    show: true,
+    backgroundColor: '#1f2937',
     // target:'node',
     webPreferences: {
       nodeIntegration: true,
@@ -26,6 +28,7 @@ function createWindow() {
       ? "http://localhost:3000"
       : `file://${path.join(__dirname, "../build/index.html")}`
   );
+  // Keep the native window dark while Chromium loads the HTML startup screen.
   mainWindow.on("closed", () => (mainWindow = null));
 }
 

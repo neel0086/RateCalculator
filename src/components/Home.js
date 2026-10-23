@@ -1,11 +1,9 @@
 import React from 'react'
-import { useStateContext } from '../context'
 import image from "../assets/main.png"
 import { Link } from "react-router-dom"
 
 const Home = () => {
 
-  const { address } = useStateContext()
   return (
     <div className='flex items-center justify-center text-lg pb-40 w-screen '>
       {/* <p>
