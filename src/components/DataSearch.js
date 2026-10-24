@@ -23,6 +23,34 @@ const DEFAULT_PRINT_FIELDS = [
   { key: 'board2', label: 'Board3' },
   { key: 'colors', label: 'Color' },
 ];
+const DEFAULT_PRINT_FONT_SIZE = 14;
+const DEFAULT_PRINT_CELL_PADDING = 4;
+const DEFAULT_PRINT_HORIZONTAL_PADDING = 4;
+const DEFAULT_PRINT_ALIGNMENT = 'left';
+const PRINT_SETTINGS_STORAGE_KEY = 'rateCalculatorPrintSettings';
+const parsePrintSetting = (value, fallback, min, max) => {
+  const text = String(value).trim();
+  if (!text) return { value: fallback, valid: true };
+  if (!/^\d+$/.test(text)) return { value: fallback, valid: false };
+
+  const parsed = Number.parseInt(text, 10);
+  return parsed >= min && parsed <= max
+    ? { value: parsed, valid: true }
+    : { value: fallback, valid: false };
+};
+const loadSavedPrintSettings = () => {
+  try {
+    const saved = JSON.parse(window.localStorage.getItem(PRINT_SETTINGS_STORAGE_KEY) || '{}');
+    return {
+      fontSize: parsePrintSetting(saved.fontSize, DEFAULT_PRINT_FONT_SIZE, 0, 100).value,
+      cellPadding: parsePrintSetting(saved.cellPadding, DEFAULT_PRINT_CELL_PADDING, 0, 10000).value,
+      horizontalPadding: parsePrintSetting(saved.horizontalPadding, DEFAULT_PRINT_HORIZONTAL_PADDING, 0, 10000).value,
+      alignment: ['left', 'center', 'right'].includes(saved.alignment) ? saved.alignment : DEFAULT_PRINT_ALIGNMENT,
+    };
+  } catch (error) {
+    return { fontSize: DEFAULT_PRINT_FONT_SIZE, cellPadding: DEFAULT_PRINT_CELL_PADDING, horizontalPadding: DEFAULT_PRINT_HORIZONTAL_PADDING, alignment: DEFAULT_PRINT_ALIGNMENT };
+  }
+};
 const normalizePhone = (value) => String(value || '').replace(/\D/g, '');
 
 const getPhoneFromRow = (row) => {
@@ -140,8 +168,10 @@ const DataSearch = ({ contract }) => {
   const [extraPrintFields, setExtraPrintFields] = useState([])
   const [showPrintFieldPicker, setShowPrintFieldPicker] = useState(false)
   const [selectedPrintFields, setSelectedPrintFields] = useState([])
-  const [printCellSize, setPrintCellSize] = useState(14)
-  const [printCellPadding, setPrintCellPadding] = useState(4)
+  const [printCellSize, setPrintCellSize] = useState(() => String(loadSavedPrintSettings().fontSize))
+  const [printCellPadding, setPrintCellPadding] = useState(() => String(loadSavedPrintSettings().cellPadding))
+  const [printHorizontalPadding, setPrintHorizontalPadding] = useState(() => String(loadSavedPrintSettings().horizontalPadding))
+  const [printAlignment, setPrintAlignment] = useState(() => loadSavedPrintSettings().alignment)
 
   const [printModal, setPrintModal] = useState(false)
 
@@ -363,20 +393,40 @@ const DataSearch = ({ contract }) => {
   };
 
 
+  const printFontSetting = parsePrintSetting(printCellSize, DEFAULT_PRINT_FONT_SIZE, 0, 100);
+  const printPaddingSetting = parsePrintSetting(printCellPadding, DEFAULT_PRINT_CELL_PADDING, 0, 10000);
+  const printHorizontalPaddingSetting = parsePrintSetting(printHorizontalPadding, DEFAULT_PRINT_HORIZONTAL_PADDING, 0, 10000);
+  const printSettingsValid = printFontSetting.valid && printPaddingSetting.valid && printHorizontalPaddingSetting.valid;
+
   const handlePrint = () => {
+    if (!printSettingsValid) return;
+    setPrintCellSize(String(printFontSetting.value));
+    setPrintCellPadding(String(printPaddingSetting.value));
+    setPrintHorizontalPadding(String(printHorizontalPaddingSetting.value));
+    try {
+      window.localStorage.setItem(PRINT_SETTINGS_STORAGE_KEY, JSON.stringify({
+        fontSize: printFontSetting.value,
+        cellPadding: printPaddingSetting.value,
+        horizontalPadding: printHorizontalPaddingSetting.value,
+        alignment: printAlignment,
+      }));
+    } catch (error) {
+      // Printing still works if browser storage is unavailable.
+    }
     const currentDate = new Date().toLocaleDateString();
     const printWindow = window.open('', '_blank');
+    if (!printWindow) return;
     printWindow.document.write('<html><head><title>Print</title>');
     printWindow.document.write(
       '<style>' +
       '@page { margin: 5mm; }' +
-      'body { margin: 0; font-family: Roboto, Arial, sans-serif; color: #000; font-size: ' + Number(printCellSize) + 'px; }' +
+      'body { margin: 0; font-family: Roboto, Arial, sans-serif; color: #000; font-size: ' + printFontSetting.value + 'px; }' +
       '.print-content { width: max-content; max-width: 100%; margin: 0 auto; box-sizing: border-box; }' +
       'table { width: 100%; max-width: 100%; border-collapse: collapse; margin: 0; border: 1px solid black; table-layout: auto; }' +
-      'th, td { padding: ' + Number(printCellPadding) + 'px; font-size: ' + Number(printCellSize) + 'px; line-height: 1.15; text-align: left; vertical-align: top; border: 1px solid black; overflow-wrap: anywhere; }' +
+      'th, td { padding: ' + printPaddingSetting.value + 'px ' + printHorizontalPaddingSetting.value + 'px; font-size: ' + printFontSetting.value + 'px; line-height: 1.15; text-align: ' + printAlignment + '; vertical-align: top; border: 1px solid black; overflow-wrap: anywhere; }' +
       '.header-row { display: flex; flex-direction: row; justify-content: space-between; align-items: center; gap: 12px; margin: 0 0 2px; width: 100%; max-width: 100%; box-sizing: border-box; text-align: center; }' +
-      '.company-name { flex: 1 1 auto; min-width: 0; font-size: ' + Number(printCellSize) + 'px; font-weight: bold; margin: 0; line-height: 1.1; text-align: left; overflow-wrap: anywhere; }' +
-      '.date { flex: 0 0 auto; font-size: ' + Number(printCellSize) + 'px; margin: 0; line-height: 1.1; text-align: right; white-space: nowrap; }' +
+      '.company-name { flex: 1 1 auto; min-width: 0; font-size: ' + printFontSetting.value + 'px; font-weight: bold; margin: 0; line-height: 1.1; text-align: left; overflow-wrap: anywhere; }' +
+      '.date { flex: 0 0 auto; font-size: ' + printFontSetting.value + 'px; margin: 0; line-height: 1.1; text-align: right; white-space: nowrap; }' +
       '</style>'
     );
     printWindow.document.write('</head><body>');
@@ -651,12 +701,28 @@ const DataSearch = ({ contract }) => {
                       <p className="mt-2 text-xs text-gray-500 dark:text-gray-300">The original print fields are included by default. Add or remove other saved fields as needed.</p>
                     </div>
                     <div className="mb-4 grid grid-cols-1 gap-3 sm:grid-cols-3">
-                      <label className="text-sm font-medium text-gray-900 dark:text-white">Cell size (px)
-                        <input aria-label="Print cell size" type="number" min="8" max="36" value={printCellSize} onChange={(event) => setPrintCellSize(Math.min(36, Math.max(8, Number(event.target.value) || 8)))} className="mt-1 block w-full rounded-lg border border-gray-300 bg-gray-50 p-2 text-gray-900 dark:bg-gray-600 dark:text-white" />
+                      <label className="text-sm font-medium text-gray-900 dark:text-white">Font size
+                        <input aria-label="Print font size" type="text" inputMode="numeric" value={printCellSize} onChange={(event) => setPrintCellSize(event.target.value)} className={`mt-1 block w-full rounded-lg border bg-gray-50 p-2 text-gray-900 dark:bg-gray-600 dark:text-white ${printFontSetting.valid ? 'border-gray-300' : 'border-2 border-red-600'}`} />
+                        {!printFontSetting.valid && <span role="alert" className="mt-1 block text-xs text-red-600">Enter a value between 0 and 100.</span>}
                       </label>
-                      <label className="text-sm font-medium text-gray-900 dark:text-white">Cell padding (px)
-                        <input aria-label="Print cell padding" type="number" min="0" max="32" value={printCellPadding} onChange={(event) => setPrintCellPadding(Math.min(32, Math.max(0, Number(event.target.value) || 0)))} className="mt-1 block w-full rounded-lg border border-gray-300 bg-gray-50 p-2 text-gray-900 dark:bg-gray-600 dark:text-white" />
+                      <label className="text-sm font-medium text-gray-900 dark:text-white">Cell vertical padding
+                        <input aria-label="Cell vertical padding" type="text" inputMode="numeric" value={printCellPadding} onChange={(event) => setPrintCellPadding(event.target.value)} className={`mt-1 block w-full rounded-lg border bg-gray-50 p-2 text-gray-900 dark:bg-gray-600 dark:text-white ${printPaddingSetting.valid ? 'border-gray-300' : 'border-2 border-red-600'}`} />
+                        {!printPaddingSetting.valid && <span role="alert" className="mt-1 block text-xs text-red-600">Enter a whole number between 0 and 10,000.</span>}
                       </label>
+                      <label className="text-sm font-medium text-gray-900 dark:text-white">Cell left/right padding
+                        <input aria-label="Cell left/right padding" type="text" inputMode="numeric" value={printHorizontalPadding} onChange={(event) => setPrintHorizontalPadding(event.target.value)} className={`mt-1 block w-full rounded-lg border bg-gray-50 p-2 text-gray-900 dark:bg-gray-600 dark:text-white ${printHorizontalPaddingSetting.valid ? 'border-gray-300' : 'border-2 border-red-600'}`} />
+                        {!printHorizontalPaddingSetting.valid && <span role="alert" className="mt-1 block text-xs text-red-600">Enter a whole number between 0 and 10,000.</span>}
+                      </label>
+                    </div>
+                    <div className="mb-4">
+                      <span className="mb-2 block text-sm font-medium text-gray-900 dark:text-white">Cell text alignment</span>
+                      <div className="inline-flex overflow-hidden rounded-lg border border-gray-300 dark:border-gray-500" role="group" aria-label="Cell text alignment">
+                        {['left', 'center', 'right'].map((alignment) => (
+                          <button key={alignment} type="button" aria-pressed={printAlignment === alignment} onClick={() => setPrintAlignment(alignment)} className={`px-4 py-2 text-sm capitalize ${printAlignment === alignment ? 'bg-blue-600 text-white' : 'bg-white text-gray-700 hover:bg-gray-100 dark:bg-gray-600 dark:text-gray-200 dark:hover:bg-gray-500'}`}>
+                            {alignment}
+                          </button>
+                        ))}
+                      </div>
                     </div>
                     <div className="mb-4">
                       <div className="flex items-center justify-between mb-2">
@@ -678,11 +744,8 @@ const DataSearch = ({ contract }) => {
                       </textarea>
                     </div>
                   </div>
-                  <button type="button" className="text-white bg-red-600 hover:bg-red-800 focus:ring-4 focus:outline-none focus:ring-red-300 dark:focus:ring-red-800 font-medium rounded-lg text-sm inline-flex items-center px-5 py-2.5 text-center mr-2">
-                    <div onClick={() => handlePrint()} rel="noopener noreferrer">
-
-                      <span className="relative">Print</span>
-                    </div>
+                  <button type="button" onClick={handlePrint} disabled={!printSettingsValid} className="text-white bg-red-600 hover:bg-red-800 focus:ring-4 focus:outline-none focus:ring-red-300 dark:focus:ring-red-800 font-medium rounded-lg text-sm inline-flex items-center px-5 py-2.5 text-center mr-2 disabled:cursor-not-allowed disabled:opacity-50">
+                    Print
                   </button>
                   <div id="printDiv" className='hidden'>
                     {printData}
