@@ -140,6 +140,8 @@ const DataSearch = ({ contract }) => {
   const [extraPrintFields, setExtraPrintFields] = useState([])
   const [showPrintFieldPicker, setShowPrintFieldPicker] = useState(false)
   const [selectedPrintFields, setSelectedPrintFields] = useState([])
+  const [printCellSize, setPrintCellSize] = useState(14)
+  const [printCellPadding, setPrintCellPadding] = useState(4)
 
   const [printModal, setPrintModal] = useState(false)
 
@@ -368,13 +370,13 @@ const DataSearch = ({ contract }) => {
     printWindow.document.write(
       '<style>' +
       '@page { margin: 5mm; }' +
-      'body { margin: 0; font-family: Roboto, Arial, sans-serif; color: #000; }' +
-      '.print-content { width: max-content; max-width: 100%; margin: 0 auto; }' +
+      'body { margin: 0; font-family: Roboto, Arial, sans-serif; color: #000; font-size: ' + Number(printCellSize) + 'px; }' +
+      '.print-content { width: max-content; max-width: 100%; margin: 0 auto; box-sizing: border-box; }' +
       'table { width: 100%; max-width: 100%; border-collapse: collapse; margin: 0; border: 1px solid black; table-layout: auto; }' +
-      'th, td { padding: 4px 6px; font-size: 14px; line-height: 1.15; text-align: left; vertical-align: top; border: 1px solid black; overflow-wrap: anywhere; }' +
+      'th, td { padding: ' + Number(printCellPadding) + 'px; font-size: ' + Number(printCellSize) + 'px; line-height: 1.15; text-align: left; vertical-align: top; border: 1px solid black; overflow-wrap: anywhere; }' +
       '.header-row { display: flex; flex-direction: row; justify-content: space-between; align-items: center; gap: 12px; margin: 0 0 2px; width: 100%; max-width: 100%; box-sizing: border-box; text-align: center; }' +
-      '.company-name { min-width: 0; font-size: 12px; font-weight: bold; margin: 0; line-height: 1.1; text-align: left; overflow-wrap: anywhere; }' +
-      '.date { flex: 0 0 auto; font-size: 10px; margin: 0; line-height: 1.1; text-align: right; white-space: nowrap; }' +
+      '.company-name { flex: 1 1 auto; min-width: 0; font-size: ' + Number(printCellSize) + 'px; font-weight: bold; margin: 0; line-height: 1.1; text-align: left; overflow-wrap: anywhere; }' +
+      '.date { flex: 0 0 auto; font-size: ' + Number(printCellSize) + 'px; margin: 0; line-height: 1.1; text-align: right; white-space: nowrap; }' +
       '</style>'
     );
     printWindow.document.write('</head><body>');
@@ -647,6 +649,14 @@ const DataSearch = ({ contract }) => {
                     <div className="mb-4">
                       <button type="button" disabled={!getPrintRecord(wid)} onClick={() => setShowPrintFieldPicker(true)} className="rounded bg-zinc-700 px-3 py-2 text-sm font-medium text-white hover:bg-zinc-800 disabled:cursor-not-allowed disabled:opacity-50">Choose print fields</button>
                       <p className="mt-2 text-xs text-gray-500 dark:text-gray-300">The original print fields are included by default. Add or remove other saved fields as needed.</p>
+                    </div>
+                    <div className="mb-4 grid grid-cols-1 gap-3 sm:grid-cols-3">
+                      <label className="text-sm font-medium text-gray-900 dark:text-white">Cell size (px)
+                        <input aria-label="Print cell size" type="number" min="8" max="36" value={printCellSize} onChange={(event) => setPrintCellSize(Math.min(36, Math.max(8, Number(event.target.value) || 8)))} className="mt-1 block w-full rounded-lg border border-gray-300 bg-gray-50 p-2 text-gray-900 dark:bg-gray-600 dark:text-white" />
+                      </label>
+                      <label className="text-sm font-medium text-gray-900 dark:text-white">Cell padding (px)
+                        <input aria-label="Print cell padding" type="number" min="0" max="32" value={printCellPadding} onChange={(event) => setPrintCellPadding(Math.min(32, Math.max(0, Number(event.target.value) || 0)))} className="mt-1 block w-full rounded-lg border border-gray-300 bg-gray-50 p-2 text-gray-900 dark:bg-gray-600 dark:text-white" />
+                      </label>
                     </div>
                     <div className="mb-4">
                       <div className="flex items-center justify-between mb-2">
